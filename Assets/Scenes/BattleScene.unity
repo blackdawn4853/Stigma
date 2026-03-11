@@ -2796,7 +2796,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Player HP: 50/50'
+  m_text: 'Player HP: 50/50 1111111'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 450f586093ee82d42bf87ddc10de7cdf, type: 2}
   m_sharedMaterial: {fileID: 4767489941311049446, guid: 450f586093ee82d42bf87ddc10de7cdf, type: 2}
