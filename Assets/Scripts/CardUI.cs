@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
 
-public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     [Header("카드 UI 요소")]
     public TextMeshProUGUI cardNameText;
@@ -17,44 +17,159 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     public float hoverSpeed = 8f;
     public float hoverYOffset = 30f;
 
+    [Header("드래그 설정")]
+    public float arrowTriggerDistance = 80f; // 이 거리 이상 드래그하면 화살표 모드
+
     private CardData cardData;
     private Vector3 originalScale;
     private Vector3 originalPosition;
     private Vector3 targetScale;
     private Vector3 targetPosition;
 
+    private bool isDragging = false;
+    private bool isArrowMode = false;
+    private Vector2 dragStartScreenPos;
+    private Canvas canvas;
+
     void Start()
     {
         originalScale = transform.localScale;
         targetScale = originalScale;
-    // 한 프레임 기다렸다가 위치 저장
+        canvas = GetComponentInParent<Canvas>();
         StartCoroutine(InitPosition());
     }
 
     System.Collections.IEnumerator InitPosition()
     {
-        yield return null; // 한 프레임 대기
+        yield return null;
         originalPosition = transform.localPosition;
         targetPosition = originalPosition;
     }
 
     void Update()
     {
-        // 부드럽게 크기/위치 변환
-        transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * hoverSpeed);
-        transform.localPosition = Vector3.Lerp(transform.localPosition, targetPosition, Time.deltaTime * hoverSpeed);
+        if (!isDragging)
+        {
+            transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * hoverSpeed);
+            transform.localPosition = Vector3.Lerp(transform.localPosition, targetPosition, Time.deltaTime * hoverSpeed);
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        targetScale = originalScale * hoverScale;
-        targetPosition = originalPosition + new Vector3(0, hoverYOffset, 0);
+        if (!isDragging)
+        {
+            targetScale = originalScale * hoverScale;
+            targetPosition = originalPosition + new Vector3(0, hoverYOffset, 0);
+        }
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        if (!isDragging)
+        {
+            targetScale = originalScale;
+            targetPosition = originalPosition;
+        }
+    }
+
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        if (cardData == null || !cardData.requiresTarget) return;
+
+        isDragging = true;
+        isArrowMode = false;
+        dragStartScreenPos = eventData.position;
         targetScale = originalScale;
-        targetPosition = originalPosition;
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (!isDragging) return;
+
+        float distance = Vector2.Distance(eventData.position, dragStartScreenPos);
+
+        if (!isArrowMode)
+        {
+            if (distance < arrowTriggerDistance)
+            {
+                // 카드가 따라옴
+                Vector3 worldPos;
+                RectTransformUtility.ScreenPointToWorldPointInRectangle(
+                    canvas.GetComponent<RectTransform>(),
+                    eventData.position,
+                    canvas.worldCamera,
+                    out worldPos);
+                transform.position = worldPos;
+            }
+            else
+            {
+                // 화살표 모드 전환
+                isArrowMode = true;
+                transform.localPosition = originalPosition;
+                targetPosition = originalPosition;
+
+                if (DragArrow.Instance != null)
+                {
+                    Vector3 startWorld = Camera.main.ScreenToWorldPoint(dragStartScreenPos);
+                    startWorld.z = 0;
+                    DragArrow.Instance.ShowArrow(startWorld);
+                }
+            }
+        }
+
+        if (isArrowMode && DragArrow.Instance != null)
+        {
+            Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(eventData.position);
+            mouseWorld.z = 0;
+            DragArrow.Instance.UpdateArrow(mouseWorld);
+        }
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        isDragging = false;
+
+        if (DragArrow.Instance != null)
+            DragArrow.Instance.HideArrow();
+
+        if (cardData == null)
+        {
+            transform.localPosition = originalPosition;
+            targetPosition = originalPosition;
+            return;
+        }
+
+        bool success = false;
+
+        if (cardData.requiresTarget)
+        {
+            Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
+            worldPos.z = 0;
+            Collider2D hit = Physics2D.OverlapPoint(worldPos);
+
+            if (hit != null && hit.CompareTag("Monster"))
+            {
+                success = BattleManager.Instance.PlayCardOnMonster(cardData);
+            }
+            else
+            {
+                Debug.Log("몬스터에게 드래그해줘!");
+            }
+        }
+        else
+        {
+            success = BattleManager.Instance.PlayCardOnField(cardData);
+        }
+
+        if (success)
+            PlayerHand.Instance.RemoveCardFromHand(this);
+        else
+        {
+            transform.localPosition = originalPosition;
+            targetPosition = originalPosition;
+            isArrowMode = false;
+        }
     }
 
     public void Setup(CardData data)
@@ -66,22 +181,6 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
         if (rarityBorder != null)
             rarityBorder.color = data.GetRarityColor();
-    }
-
-    public void OnCardClicked()
-    {
-        if (cardData == null) return;
-
-        bool success = BattleManager.Instance.PlayCard(cardData);
-
-        if (success)
-        {
-            PlayerHand.Instance.RemoveCardFromHand(this);
-        }
-        else
-        {
-            Debug.Log("마나 부족!");
-        }
     }
 
     public CardData GetCardData() => cardData;

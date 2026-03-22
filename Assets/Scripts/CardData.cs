@@ -14,36 +14,21 @@ public class CardData : ScriptableObject
     [Header("카드 효과")]
     public CardEffectType effectType;
 
-    [Header("수치")]
-    public int value;        // 데미지, 방어막, 회복량 등
-    public int hitCount = 1; // MultiHit에서 몇 번 때릴지 (기본 1)
+    [Header("타겟 필요 여부")]
+    public bool requiresTarget = false; // true면 몬스터에게 드래그, false면 필드에 드래그
 
-    [Header("조건부 효과")]
-    public CardCondition condition = CardCondition.None;
-    public float conditionThreshold = 0.3f; // 조건 기준 (예: HP 30% 이하)
+    [Header("수치")]
+    public int value;
 
     public enum CardEffectType
     {
-        Damage,       // 기본 데미지
-        MultiHit,     // 여러번 공격 (value * hitCount)
-        Execute,      // 적 HP가 conditionThreshold 이하일 때 즉사
-        RageAttack,   // 내 HP가 낮을수록 데미지 증가
-        Shield,       // 방어막 (다음 공격 1회 차단)
-        Thorns,       // 반사 데미지 (공격받으면 value만큼 반사)
-        Dodge,        // 다음 턴 공격 완전 회피
-        WeakenEnemy,  // 적 약점 노출 (다음 공격 데미지 2배)
-        Poison,       // 독 (매 턴 value 데미지)
-        GainMana,     // 마나 즉시 회복
-        Heal,         // HP 회복
-        Taunt,        // 도발 (아무 효과 없음)
-    }
-
-    public enum CardCondition
-    {
-        None,         // 조건 없음
-        LowHP,        // 내 HP가 conditionThreshold 이하일 때만 사용 가능
-        EnemyLowHP,   // 적 HP가 conditionThreshold 이하일 때만 사용 가능
-        HighMana,     // 마나가 conditionThreshold 이상일 때만 사용 가능
+        Damage,      // 타격 - 몬스터에게 데미지
+        Shield,      // 방어 - 방어도 획득
+        // 추후 추가 예정
+        // Buff,     // 플레이어 버프
+        // Debuff,   // 몬스터 디버프
+        // Heal,     // HP 회복
+        // GainMana, // 마나 획득
     }
 
     public enum CardRarity
@@ -53,24 +38,6 @@ public class CardData : ScriptableObject
         Advanced,    // 고급
         Legendary,   // 전설
         Mythic       // 신화
-    }
-
-    // 조건 충족 여부 확인
-    public bool IsConditionMet(int playerHp, int playerMaxHp, int monsterHp, int monsterMaxHp, int currentMana)
-    {
-        switch (condition)
-        {
-            case CardCondition.None:
-                return true;
-            case CardCondition.LowHP:
-                return (float)playerHp / playerMaxHp <= conditionThreshold;
-            case CardCondition.EnemyLowHP:
-                return (float)monsterHp / monsterMaxHp <= conditionThreshold;
-            case CardCondition.HighMana:
-                return currentMana >= conditionThreshold;
-            default:
-                return true;
-        }
     }
 
     // 등급별 색상

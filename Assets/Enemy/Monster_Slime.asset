@@ -14,7 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MonsterData
   monsterName: "\uC2AC\uB77C\uC784"
   maxHp: 30
-  cardPool:
-  - {fileID: 11400000, guid: 18f06b70fda045c4f9f0b85937fcd72d, type: 2}
-  - {fileID: 11400000, guid: 5f1ed8188915e4b4ebbc97d14520cc47, type: 2}
   monsterType: 0
+  actionPool:
+  - actionType: 0
+    value: 8
+    duration: 0
+  - actionType: 1
+    value: 6
+    duration: 0

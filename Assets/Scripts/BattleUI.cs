@@ -17,15 +17,18 @@ public class BattleUI : MonoBehaviour
     [Header("마나 UI")]
     public TextMeshProUGUI manaText;
 
+    [Header("방어도 UI")]
+    public TextMeshProUGUI playerDefenseText;
+    public TextMeshProUGUI monsterDefenseText;
+
+    [Header("시선 게이지 UI")]
+    public Slider gazeBar;
+    public TextMeshProUGUI gazeText;
+
     void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
-    }
-
-    void Start()
-    {
-        
     }
 
     public void UpdateUI()
@@ -40,13 +43,21 @@ public class BattleUI : MonoBehaviour
         playerHPText.text = $"{bm.playerCurrentHp}/{bm.playerMaxHp}";
 
         manaText.text = $"Mana: {bm.currentMana}/{bm.maxMana}";
+
+        if (playerDefenseText != null)
+            playerDefenseText.text = bm.playerDefense > 0 ? $"방어 {bm.playerDefense}" : "";
+        if (monsterDefenseText != null)
+            monsterDefenseText.text = bm.monsterDefense > 0 ? $"방어 {bm.monsterDefense}" : "";
+
+        if (gazeBar != null)
+            gazeBar.value = (float)bm.gazeLevel / 100f;
+        if (gazeText != null)
+            gazeText.text = $"시선: {bm.gazeLevel}";
     }
 
     public void UpdateMonsterIntent()
     {
         if (MonsterIntent.Instance != null)
-        {
-            MonsterIntent.Instance.UpdateIntent(BattleManager.Instance.monsterNextCard);
-        }
+            MonsterIntent.Instance.UpdateIntent(BattleManager.Instance.monsterNextAction);
     }
 }

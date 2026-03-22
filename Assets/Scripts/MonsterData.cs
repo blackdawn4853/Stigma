@@ -7,45 +7,47 @@ public class MonsterData : ScriptableObject
     public string monsterName;
     public int maxHp;
 
-    [Header("몬스터 카드 풀")]
-    public CardData[] cardPool; // 이 몬스터가 쓸 수 있는 카드 목록
-
     [Header("몬스터 타입")]
     public MonsterType monsterType;
 
     public enum MonsterType
     {
-        Normal,  // 일반 몬스터 (랜덤으로 카드 사용)
-        Elite,   // 엘리트 (조건부 카드 사용)
-        Boss     // 보스 (조건부 카드 사용)
+        Normal,
+        Elite,
+        Boss
     }
 
-    // 몬스터가 다음에 쓸 카드 결정
-    public CardData GetNextCard(int currentHp)
+    // 몬스터 행동 타입
+    public enum ActionType
     {
-        if (cardPool == null || cardPool.Length == 0)
+        Attack,   // 공격
+        Defend,   // 방어
+        Buff,     // 버프 (공격력 증가)
+        Debuff    // 디버프 (받는 데미지 증가)
+    }
+
+    [System.Serializable]
+    public class MonsterAction
+    {
+        public ActionType actionType;
+        public int value;       // 데미지 or 방어도 수치
+        public int duration;    // 버프/디버프 지속 턴 (공격/방어는 0)
+    }
+
+    [Header("몬스터 행동 풀")]
+    public MonsterAction[] actionPool;
+
+    // 다음 행동 결정
+    public MonsterAction GetNextAction()
+    {
+        if (actionPool == null || actionPool.Length == 0)
         {
-            Debug.LogWarning($"{monsterName} 의 카드풀이 비어있어!");
-            return null;
+            Debug.LogWarning($"{monsterName} 의 행동 풀이 비어있어!");
+            // 기본 공격 반환
+            return new MonsterAction { actionType = ActionType.Attack, value = 5 };
         }
 
-        switch (monsterType)
-        {
-            case MonsterType.Normal:
-                // 일반 몬스터는 랜덤
-                return cardPool[Random.Range(0, cardPool.Length)];
-
-            case MonsterType.Elite:
-            case MonsterType.Boss:
-                // 체력 50% 이하면 80% 확률로 첫 번째 카드 사용
-                // (나중에 보스마다 커스텀 로직 추가 가능)
-                float hpRatio = (float)currentHp / maxHp;
-                if (hpRatio <= 0.5f && Random.value <= 0.8f)
-                    return cardPool[0];
-                return cardPool[Random.Range(0, cardPool.Length)];
-
-            default:
-                return cardPool[Random.Range(0, cardPool.Length)];
-        }
+        // 일단 랜덤으로 행동 선택
+        return actionPool[Random.Range(0, actionPool.Length)];
     }
 }

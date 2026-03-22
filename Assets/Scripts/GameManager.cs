@@ -7,21 +7,17 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("플레이어 스탯")]
-    public int playerMaxHp = 50;
-    public int playerCurrentHp = 50;
+    public int playerMaxHp = 100;
+    public int playerCurrentHp = 100;
     public int playerGold = 100;
 
-    [Header("현재 게임 상태")]
-    public string pendingNodeType = "";
-
     [Header("던전 상태")]
-    public int currentRoomCount = 0;
     public bool returningFromBattle = false;
-    public bool hasKey = false;
     public Vector2Int savedRoomGridPos = Vector2Int.zero;
 
     [Header("시작 덱 설정")]
-    public CardData[] startingDeck;
+    public CardData strikeCard;  // 타격 카드
+    public CardData defendCard;  // 방어 카드
 
     [Header("덱 관리")]
     public List<CardData> playerDeck = new List<CardData>();
@@ -43,19 +39,26 @@ public class GameManager : MonoBehaviour
     public void InitializeDeck()
     {
         playerDeck.Clear();
-        foreach (CardData card in startingDeck)
-            playerDeck.Add(card);
 
-        Debug.Log($"시작 덱 초기화 완료: {playerDeck.Count}장");
+        // 타격 5장 + 방어 5장
+        for (int i = 0; i < 5; i++)
+        {
+            if (strikeCard != null) playerDeck.Add(strikeCard);
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            if (defendCard != null) playerDeck.Add(defendCard);
+        }
+
+        Debug.Log($"시작 덱 초기화: {playerDeck.Count}장");
     }
 
     public void GameOver()
     {
-        InitializeDeck();
         playerCurrentHp = playerMaxHp;
         playerGold = 100;
-
-        Debug.Log("게임 오버! 덱 초기화");
+        InitializeDeck();
+        Debug.Log("게임 오버!");
         SceneManager.LoadScene("MapScene");
     }
 
@@ -67,21 +70,12 @@ public class GameManager : MonoBehaviour
 
     public void LoadBattle()
     {
-        pendingNodeType = "Battle";
         SceneManager.LoadScene("BattleScene");
     }
 
     public void LoadShop()
     {
-        pendingNodeType = "Shop";
         SceneManager.LoadScene("ShopScene");
-    }
-
-    public void LoadHeal()
-    {
-        playerCurrentHp = Mathf.Min(playerCurrentHp + 15, playerMaxHp);
-        Debug.Log($"HP 회복! 현재 HP: {playerCurrentHp}/{playerMaxHp}");
-        SceneManager.LoadScene("MapScene");
     }
 
     public void ReturnToMap()

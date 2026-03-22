@@ -6,8 +6,8 @@ public class EffectManager : MonoBehaviour
     public static EffectManager Instance { get; private set; }
 
     [Header("이펙트 대상 위치")]
-    public Transform monsterTransform;  // 몬스터 위치
-    public Transform playerTransform;   // 플레이어 위치
+    public Transform monsterTransform;
+    public Transform playerTransform;
 
     void Awake()
     {
@@ -15,7 +15,6 @@ public class EffectManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    // 카드 타입에 맞는 이펙트 실행
     public void PlayCardEffect(CardData card, bool targetIsMonster = true)
     {
         Transform target = targetIsMonster ? monsterTransform : playerTransform;
@@ -23,45 +22,15 @@ public class EffectManager : MonoBehaviour
         switch (card.effectType)
         {
             case CardData.CardEffectType.Damage:
-            case CardData.CardEffectType.Execute:
                 StartCoroutine(SlashEffect(target));
-                break;
-
-            case CardData.CardEffectType.MultiHit:
-                StartCoroutine(MultiSlashEffect(target, card.hitCount));
-                break;
-
-            case CardData.CardEffectType.RageAttack:
-                StartCoroutine(RageEffect(target));
-                break;
-
-            case CardData.CardEffectType.Poison:
-                StartCoroutine(PoisonEffect(target));
                 break;
 
             case CardData.CardEffectType.Shield:
                 StartCoroutine(ShieldEffect(playerTransform));
                 break;
-
-            case CardData.CardEffectType.Heal:
-                StartCoroutine(HealEffect(playerTransform));
-                break;
-
-            case CardData.CardEffectType.Dodge:
-                StartCoroutine(DodgeEffect(playerTransform));
-                break;
-
-            case CardData.CardEffectType.Thorns:
-                StartCoroutine(ThornsEffect(playerTransform));
-                break;
-
-            case CardData.CardEffectType.WeakenEnemy:
-                StartCoroutine(WeakenEffect(target));
-                break;
         }
     }
 
-    // 할퀴기 자국 이펙트
     IEnumerator SlashEffect(Transform target)
     {
         for (int i = 0; i < 3; i++)
@@ -73,46 +42,6 @@ public class EffectManager : MonoBehaviour
         StartCoroutine(FlashColor(target, Color.red));
     }
 
-    // 연속 공격 이펙트
-    IEnumerator MultiSlashEffect(Transform target, int hitCount)
-    {
-        for (int i = 0; i < hitCount; i++)
-        {
-            GameObject slash = CreateLine(target.position, new Color(1f, 0.3f, 0f));
-            Destroy(slash, 0.2f);
-            StartCoroutine(FlashColor(target, new Color(1f, 0.3f, 0f)));
-            yield return new WaitForSeconds(0.15f);
-        }
-    }
-
-    // 분노 이펙트
-    IEnumerator RageEffect(Transform target)
-    {
-        for (int i = 0; i < 5; i++)
-        {
-            GameObject slash = CreateLine(target.position, new Color(1f, 0.1f, 0f));
-            Destroy(slash, 0.3f);
-            yield return new WaitForSeconds(0.04f);
-        }
-        StartCoroutine(FlashColor(target, new Color(1f, 0.1f, 0f)));
-    }
-
-    // 독 이펙트
-    IEnumerator PoisonEffect(Transform target)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            GameObject dot = CreateDot(
-                target.position + new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0),
-                new Color(0.2f, 0.9f, 0.2f)
-            );
-            Destroy(dot, 0.5f);
-            yield return new WaitForSeconds(0.08f);
-        }
-        StartCoroutine(FlashColor(target, new Color(0.2f, 0.9f, 0.2f)));
-    }
-
-    // 방어막 이펙트
     IEnumerator ShieldEffect(Transform target)
     {
         for (int i = 0; i < 6; i++)
@@ -127,57 +56,6 @@ public class EffectManager : MonoBehaviour
         StartCoroutine(FlashColor(target, new Color(0.2f, 0.5f, 1f)));
     }
 
-    // 회복 이펙트
-    IEnumerator HealEffect(Transform target)
-    {
-        for (int i = 0; i < 6; i++)
-        {
-            GameObject dot = CreateDot(
-                target.position + new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(0f, 1f), 0),
-                new Color(0.2f, 1f, 0.4f)
-            );
-            Destroy(dot, 0.6f);
-            yield return new WaitForSeconds(0.06f);
-        }
-    }
-
-    // 회피 이펙트
-    IEnumerator DodgeEffect(Transform target)
-    {
-        StartCoroutine(FlashColor(target, new Color(0.8f, 0.8f, 0f)));
-        yield return null;
-    }
-
-    // 가시 이펙트
-    IEnumerator ThornsEffect(Transform target)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            GameObject dot = CreateDot(
-                target.position + new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0),
-                new Color(0.8f, 0.4f, 0f)
-            );
-            Destroy(dot, 0.4f);
-            yield return new WaitForSeconds(0.06f);
-        }
-    }
-
-    // 약점 노출 이펙트
-    IEnumerator WeakenEffect(Transform target)
-    {
-        for (int i = 0; i < 4; i++)
-        {
-            GameObject dot = CreateDot(
-                target.position + new Vector3(Random.Range(-0.5f, 0.5f), Random.Range(-0.5f, 0.5f), 0),
-                new Color(0.8f, 0.8f, 0f)
-            );
-            Destroy(dot, 0.4f);
-            yield return new WaitForSeconds(0.06f);
-        }
-        StartCoroutine(FlashColor(target, new Color(0.8f, 0.8f, 0f)));
-    }
-
-    // 선 생성 (할퀴기 자국)
     GameObject CreateLine(Vector3 position, Color color)
     {
         GameObject obj = new GameObject("SlashEffect");
@@ -198,7 +76,6 @@ public class EffectManager : MonoBehaviour
         return obj;
     }
 
-    // 점 생성 (독, 방어막 등)
     GameObject CreateDot(Vector3 position, Color color)
     {
         GameObject obj = new GameObject("DotEffect");
@@ -210,7 +87,6 @@ public class EffectManager : MonoBehaviour
         return obj;
     }
 
-    // 대상 색상 깜빡임
     IEnumerator FlashColor(Transform target, Color flashColor)
     {
         SpriteRenderer sr = target.GetComponent<SpriteRenderer>();

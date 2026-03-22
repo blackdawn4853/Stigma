@@ -30,7 +30,7 @@ public class MapNode : MonoBehaviour
                 GameManager.Instance.LoadShop();
                 break;
             case NodeType.Heal:
-                GameManager.Instance.LoadHeal();
+                Debug.Log("힐 노드 - 추후 구현");
                 break;
         }
     }

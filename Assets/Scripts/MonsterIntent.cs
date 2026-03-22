@@ -6,12 +6,16 @@ public class MonsterIntent : MonoBehaviour
 {
     public static MonsterIntent Instance { get; private set; }
 
-    [Header("미니 카드 UI 요소")]
-    public GameObject intentCardObject;  // 미니 카드 전체 오브젝트
-    public TextMeshProUGUI intentCardName;
-    public TextMeshProUGUI intentCardDesc;
-    public TextMeshProUGUI intentManaCost;
-    public Image intentCardBackground;
+    [Header("Intent UI")]
+    public GameObject intentObject;
+    public TextMeshProUGUI intentText;
+    public Image intentIcon;
+
+    [Header("아이콘 색상")]
+    public Color attackColor = new Color(0.8f, 0.1f, 0.1f);   // 빨강
+    public Color defendColor = new Color(0.1f, 0.5f, 0.8f);   // 파랑
+    public Color buffColor = new Color(0.8f, 0.6f, 0.1f);     // 노랑
+    public Color debuffColor = new Color(0.5f, 0.1f, 0.8f);   // 보라
 
     void Awake()
     {
@@ -21,45 +25,51 @@ public class MonsterIntent : MonoBehaviour
 
     void Start()
     {
-        intentCardObject.SetActive(false);
+        if (intentObject != null)
+            intentObject.SetActive(false);
     }
 
-    public void UpdateIntent(CardData card)
+    public void UpdateIntent(MonsterData.MonsterAction action)
     {
-        if (card == null)
+        if (action == null)
         {
-            intentCardObject.SetActive(false);
+            if (intentObject != null)
+                intentObject.SetActive(false);
             return;
         }
 
-        intentCardObject.SetActive(true);
-        intentCardName.text = card.cardName;
-        intentCardDesc.text = card.description;
-        intentManaCost.text = card.manaCost.ToString();
+        if (intentObject != null)
+            intentObject.SetActive(true);
 
-        // 카드 타입별 배경색
-        if (intentCardBackground != null)
+        switch (action.actionType)
         {
-            switch (card.effectType)
-            {
-                case CardData.CardEffectType.Damage:
-                case CardData.CardEffectType.MultiHit:
-                case CardData.CardEffectType.Execute:
-                case CardData.CardEffectType.RageAttack:
-                    intentCardBackground.color = new Color(0.7f, 0.1f, 0.1f); // 빨강
-                    break;
-                case CardData.CardEffectType.Taunt:
-                    intentCardBackground.color = new Color(0.1f, 0.4f, 0.7f); // 파랑
-                    break;
-                case CardData.CardEffectType.Shield:
-                case CardData.CardEffectType.Dodge:
-                case CardData.CardEffectType.Thorns:
-                    intentCardBackground.color = new Color(0.1f, 0.6f, 0.2f); // 초록
-                    break;
-                default:
-                    intentCardBackground.color = new Color(0.3f, 0.3f, 0.3f); // 회색
-                    break;
-            }
+            case MonsterData.ActionType.Attack:
+                if (intentText != null)
+                    intentText.text = $"공격 {action.value}";
+                if (intentIcon != null)
+                    intentIcon.color = attackColor;
+                break;
+
+            case MonsterData.ActionType.Defend:
+                if (intentText != null)
+                    intentText.text = $"방어 {action.value}";
+                if (intentIcon != null)
+                    intentIcon.color = defendColor;
+                break;
+
+            case MonsterData.ActionType.Buff:
+                if (intentText != null)
+                    intentText.text = $"강화 {action.duration}턴";
+                if (intentIcon != null)
+                    intentIcon.color = buffColor;
+                break;
+
+            case MonsterData.ActionType.Debuff:
+                if (intentText != null)
+                    intentText.text = $"약화 {action.duration}턴";
+                if (intentIcon != null)
+                    intentIcon.color = debuffColor;
+                break;
         }
     }
 }

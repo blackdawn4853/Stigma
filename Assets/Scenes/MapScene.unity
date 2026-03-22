@@ -1165,17 +1165,10 @@ MonoBehaviour:
   playerMaxHp: 50
   playerCurrentHp: 50
   playerGold: 100
-  pendingNodeType: 
-  currentRoomCount: 0
   returningFromBattle: 0
-  hasKey: 0
   savedRoomGridPos: {x: 0, y: 0}
-  startingDeck:
-  - {fileID: 11400000, guid: 18f06b70fda045c4f9f0b85937fcd72d, type: 2}
-  - {fileID: 11400000, guid: 18f06b70fda045c4f9f0b85937fcd72d, type: 2}
-  - {fileID: 11400000, guid: 18f06b70fda045c4f9f0b85937fcd72d, type: 2}
-  - {fileID: 11400000, guid: 5f1ed8188915e4b4ebbc97d14520cc47, type: 2}
-  - {fileID: 11400000, guid: 5f1ed8188915e4b4ebbc97d14520cc47, type: 2}
+  strikeCard: {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  defendCard: {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
   playerDeck: []
 --- !u!4 &2119283033
 Transform:
