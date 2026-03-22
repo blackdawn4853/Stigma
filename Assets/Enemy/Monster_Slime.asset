@@ -22,3 +22,9 @@ MonoBehaviour:
   - actionType: 1
     value: 6
     duration: 0
+  - actionType: 2
+    value: 5
+    duration: 2
+  - actionType: 3
+    value: 0
+    duration: 2

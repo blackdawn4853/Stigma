@@ -58,6 +58,9 @@ public class BattleUI : MonoBehaviour
     public void UpdateMonsterIntent()
     {
         if (MonsterIntent.Instance != null)
+        {
             MonsterIntent.Instance.UpdateIntent(BattleManager.Instance.monsterNextAction);
+            MonsterIntent.Instance.UpdateActiveTurns();
+        }
     }
 }

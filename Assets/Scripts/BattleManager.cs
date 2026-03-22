@@ -24,6 +24,7 @@ public class BattleManager : MonoBehaviour
     public int playerDefense = 0;
     public int playerStrength = 0;
     public int playerStrengthTurns = 0;
+    public int playerDebuffTurns = 0;
     public int turnCount = 1;
 
     [Header("시선 게이지")]
@@ -77,6 +78,7 @@ public class BattleManager : MonoBehaviour
         playerDefense = 0;
         playerStrength = 0;
         playerStrengthTurns = 0;
+        playerDebuffTurns = 0;
         gazeLevel = 0;
         maxMana = 3;
         currentMana = maxMana;
@@ -152,7 +154,6 @@ public class BattleManager : MonoBehaviour
         if (PlayerHand.Instance != null)
             PlayerHand.Instance.gameObject.SetActive(true);
 
-        // 인트로 후 Intent 업데이트
         if (MonsterIntent.Instance != null)
             MonsterIntent.Instance.UpdateIntent(monsterNextAction);
 
@@ -228,6 +229,10 @@ public class BattleManager : MonoBehaviour
         {
             case CardData.CardEffectType.Damage:
                 int damage = card.value + playerStrength;
+                // 플레이어 디버프 적용 (공격력 25% 감소)
+                if (playerDebuffTurns > 0)
+                    damage = Mathf.RoundToInt(damage * 0.75f);
+                // 몬스터 디버프 적용 (받는 데미지 25% 증가)
                 if (monsterDebuffTurns > 0)
                     damage = Mathf.RoundToInt(damage * 1.25f);
                 int actualDamage = Mathf.Max(0, damage - monsterDefense);
@@ -275,6 +280,7 @@ public class BattleManager : MonoBehaviour
         if (monsterStrengthTurns > 0) monsterStrengthTurns--;
         if (monsterStrengthTurns == 0) monsterStrength = 0;
         if (monsterDebuffTurns > 0) monsterDebuffTurns--;
+        if (playerDebuffTurns > 0) playerDebuffTurns--;
 
         turnCount++;
         currentMana = maxMana;
@@ -334,8 +340,8 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case MonsterData.ActionType.Debuff:
-                monsterDebuffTurns = monsterNextAction.duration;
-                Debug.Log($"몬스터 디버프! {monsterNextAction.duration}턴 동안 받는 데미지 25% 증가");
+                playerDebuffTurns = monsterNextAction.duration;
+                Debug.Log($"몬스터 디버프! {monsterNextAction.duration}턴 동안 플레이어 공격력 25% 감소");
                 break;
         }
 
