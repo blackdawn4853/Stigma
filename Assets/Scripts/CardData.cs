@@ -8,6 +8,9 @@ public class CardData : ScriptableObject
     public string description;
     public int manaCost;
 
+    [Header("카드 타입")]
+    public CardType cardType;
+
     [Header("카드 등급")]
     public CardRarity rarity;
 
@@ -15,20 +18,29 @@ public class CardData : ScriptableObject
     public CardEffectType effectType;
 
     [Header("타겟 필요 여부")]
-    public bool requiresTarget = false; // true면 몬스터에게 드래그, false면 필드에 드래그
+    public bool requiresTarget = false;
 
     [Header("수치")]
     public int value;
+
+    [Header("시선 변화량 (금단 카드)")]
+    public int gazeChange = 0; // 양수면 상승, 음수면 감소
+
+    public enum CardType
+    {
+        Attack,    // 공격
+        Skill,     // 스킬
+        Forbidden, // 금단
+        Power      // 지속 (나중에)
+    }
 
     public enum CardEffectType
     {
         Damage,      // 타격 - 몬스터에게 데미지
         Shield,      // 방어 - 방어도 획득
+        Draw,        // 드로우 - 카드 뽑기
+        GazeChange,  // 시선 변화만 (감소/증가)
         // 추후 추가 예정
-        // Buff,     // 플레이어 버프
-        // Debuff,   // 몬스터 디버프
-        // Heal,     // HP 회복
-        // GainMana, // 마나 획득
     }
 
     public enum CardRarity
@@ -40,7 +52,6 @@ public class CardData : ScriptableObject
         Mythic       // 신화
     }
 
-    // 등급별 색상
     public Color GetRarityColor()
     {
         switch (rarity)

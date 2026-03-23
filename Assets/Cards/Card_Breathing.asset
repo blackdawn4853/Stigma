@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02e1ffd5beb79c040bd8f9627b63d0ea, type: 3}
+  m_Name: Card_Breathing
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  cardName: "\uD638\uD761 \uC815\uB9AC"
+  description: "\uBC29\uC5B4\uB3C4 4\uD68D\uB4DD. \uC2DC\uC120 8\uAC10\uC18C"
+  manaCost: 1
+  cardType: 1
+  rarity: 0
+  effectType: 1
+  requiresTarget: 0
+  value: 4
+  gazeChange: -8

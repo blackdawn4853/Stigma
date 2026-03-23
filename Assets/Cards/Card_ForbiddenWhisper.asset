@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 02e1ffd5beb79c040bd8f9627b63d0ea, type: 3}
+  m_Name: Card_ForbiddenWhisper
+  m_EditorClassIdentifier: Assembly-CSharp::CardData
+  cardName: "\uAE08\uB2E8\uC758 \uC18D\uC0AD\uC784"
+  description: "\uC801\uC5D0\uAC8C 10\uC758 \uD53C\uD574. \uC2DC\uC120 8\uD68D\uB4DD"
+  manaCost: 1
+  cardType: 2
+  rarity: 0
+  effectType: 0
+  requiresTarget: 1
+  value: 10
+  gazeChange: 8

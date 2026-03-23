@@ -29,6 +29,7 @@ public class BattleManager : MonoBehaviour
 
     [Header("시선 게이지")]
     public int gazeLevel = 0;
+    private bool usedForbiddenInCursedZone = false;
 
     [Header("덱 설정")]
     public List<CardData> deck = new List<CardData>();
@@ -80,6 +81,7 @@ public class BattleManager : MonoBehaviour
         playerStrengthTurns = 0;
         playerDebuffTurns = 0;
         gazeLevel = 0;
+        usedForbiddenInCursedZone = false;
         maxMana = 3;
         currentMana = maxMana;
 
@@ -187,6 +189,9 @@ public class BattleManager : MonoBehaviour
             hand.Add(deck[0]);
             deck.RemoveAt(0);
         }
+
+        if (PlayerHand.Instance != null)
+            PlayerHand.Instance.RefreshHand();
     }
 
     public bool PlayCardOnMonster(CardData card)
@@ -225,14 +230,20 @@ public class BattleManager : MonoBehaviour
 
     void ApplyCardEffect(CardData card, bool targetIsMonster)
     {
+        // 시선 변화 처리
+        if (card.gazeChange != 0)
+            ChangeGaze(card.gazeChange);
+
+        // 침식 구간에서 금단 카드 사용 시 턴 종료 피해 예약
+        if (card.cardType == CardData.CardType.Forbidden && gazeLevel >= 75)
+            usedForbiddenInCursedZone = true;
+
         switch (card.effectType)
         {
             case CardData.CardEffectType.Damage:
                 int damage = card.value + playerStrength;
-                // 플레이어 디버프 적용 (공격력 25% 감소)
                 if (playerDebuffTurns > 0)
                     damage = Mathf.RoundToInt(damage * 0.75f);
-                // 몬스터 디버프 적용 (받는 데미지 25% 증가)
                 if (monsterDebuffTurns > 0)
                     damage = Mathf.RoundToInt(damage * 1.25f);
                 int actualDamage = Mathf.Max(0, damage - monsterDefense);
@@ -244,7 +255,16 @@ public class BattleManager : MonoBehaviour
 
             case CardData.CardEffectType.Shield:
                 playerDefense += card.value;
-                Debug.Log($"{card.cardName} — 방어도 {card.value} 획득! (총 {playerDefense})");
+                Debug.Log($"{card.cardName} — 방어도 {card.value} 획득!");
+                break;
+
+            case CardData.CardEffectType.Draw:
+                DrawCards(card.value);
+                Debug.Log($"{card.cardName} — 카드 {card.value}장 드로우!");
+                break;
+
+            case CardData.CardEffectType.GazeChange:
+                Debug.Log($"{card.cardName} — 시선 {card.gazeChange}!");
                 break;
         }
 
@@ -260,6 +280,17 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"--- {turnCount}턴 종료 ---");
 
+        // 침식 구간 금단 카드 피해
+        if (usedForbiddenInCursedZone)
+        {
+            playerCurrentHp -= 2;
+            usedForbiddenInCursedZone = false;
+            Debug.Log("침식! 고정 피해 2");
+            if (playerHitEffect != null) playerHitEffect.PlayHit();
+            CheckPlayerDeath();
+        }
+
+        // 폭주 처리
         if (gazeLevel >= 100)
         {
             playerCurrentHp -= 20;
@@ -309,8 +340,7 @@ public class BattleManager : MonoBehaviour
                 int damage = monsterNextAction.value + monsterStrength;
 
                 if (gazeLevel >= 25 && gazeLevel < 50) damage += 1;
-                else if (gazeLevel >= 50 && gazeLevel < 75) damage += 2;
-                else if (gazeLevel >= 75) damage += 2;
+                else if (gazeLevel >= 50) damage += 2;
 
                 int actualDamage = Mathf.Max(0, damage - playerDefense);
                 playerDefense = Mathf.Max(0, playerDefense - damage);
