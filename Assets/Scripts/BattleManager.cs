@@ -86,6 +86,9 @@ public class BattleManager : MonoBehaviour
         currentMana = maxMana;
 
         deck.Clear();
+        hand.Clear();
+        discardPile.Clear();
+
         if (GameManager.Instance != null && GameManager.Instance.playerDeck.Count > 0)
         {
             foreach (CardData card in GameManager.Instance.playerDeck)
@@ -94,7 +97,7 @@ public class BattleManager : MonoBehaviour
         else
         {
             foreach (CardData card in startingCards)
-                deck.Add(card);
+                if (card != null) deck.Add(card);
         }
 
         ShuffleDeck();
@@ -174,6 +177,14 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    void ReshuffleDeck()
+    {
+        deck.AddRange(discardPile);
+        discardPile.Clear();
+        ShuffleDeck();
+        Debug.Log("덱 리셔플!");
+    }
+
     public void DrawCards(int count)
     {
         for (int i = 0; i < count; i++)
@@ -181,9 +192,7 @@ public class BattleManager : MonoBehaviour
             if (deck.Count == 0)
             {
                 if (discardPile.Count == 0) break;
-                deck.AddRange(discardPile);
-                discardPile.Clear();
-                ShuffleDeck();
+                ReshuffleDeck();
             }
 
             hand.Add(deck[0]);
@@ -192,6 +201,15 @@ public class BattleManager : MonoBehaviour
 
         if (PlayerHand.Instance != null)
             PlayerHand.Instance.RefreshHand();
+
+        if (BattleUI.Instance != null)
+            BattleUI.Instance.UpdateUI();
+    }
+
+    // 드로우 카드인지 확인
+    bool IsDrawCard(CardData card)
+    {
+        return card.effectType == CardData.CardEffectType.Draw;
     }
 
     public bool PlayCardOnMonster(CardData card)
@@ -205,9 +223,20 @@ public class BattleManager : MonoBehaviour
         }
 
         currentMana -= card.manaCost;
-        ApplyCardEffect(card, true);
         hand.Remove(card);
-        discardPile.Add(card);
+
+        // 드로우 카드는 효과 먼저, 그다음 버림으로
+        if (IsDrawCard(card))
+        {
+            ApplyCardEffect(card, true);
+            discardPile.Add(card);
+        }
+        else
+        {
+            discardPile.Add(card);
+            ApplyCardEffect(card, true);
+        }
+
         return true;
     }
 
@@ -222,19 +251,28 @@ public class BattleManager : MonoBehaviour
         }
 
         currentMana -= card.manaCost;
-        ApplyCardEffect(card, false);
         hand.Remove(card);
-        discardPile.Add(card);
+
+        // 드로우 카드는 효과 먼저, 그다음 버림으로
+        if (IsDrawCard(card))
+        {
+            ApplyCardEffect(card, false);
+            discardPile.Add(card);
+        }
+        else
+        {
+            discardPile.Add(card);
+            ApplyCardEffect(card, false);
+        }
+
         return true;
     }
 
     void ApplyCardEffect(CardData card, bool targetIsMonster)
     {
-        // 시선 변화 처리
         if (card.gazeChange != 0)
             ChangeGaze(card.gazeChange);
 
-        // 침식 구간에서 금단 카드 사용 시 턴 종료 피해 예약
         if (card.cardType == CardData.CardType.Forbidden && gazeLevel >= 75)
             usedForbiddenInCursedZone = true;
 
@@ -280,7 +318,6 @@ public class BattleManager : MonoBehaviour
 
         Debug.Log($"--- {turnCount}턴 종료 ---");
 
-        // 침식 구간 금단 카드 피해
         if (usedForbiddenInCursedZone)
         {
             playerCurrentHp -= 2;
@@ -290,7 +327,6 @@ public class BattleManager : MonoBehaviour
             CheckPlayerDeath();
         }
 
-        // 폭주 처리
         if (gazeLevel >= 100)
         {
             playerCurrentHp -= 20;

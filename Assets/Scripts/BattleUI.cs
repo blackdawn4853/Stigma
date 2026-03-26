@@ -25,6 +25,10 @@ public class BattleUI : MonoBehaviour
     public Slider gazeBar;
     public TextMeshProUGUI gazeText;
 
+    [Header("덱 UI")]
+    public TextMeshProUGUI deckCountText;
+    public TextMeshProUGUI discardCountText;
+
     void Awake()
     {
         if (Instance == null) Instance = this;
@@ -53,6 +57,11 @@ public class BattleUI : MonoBehaviour
             gazeBar.value = (float)bm.gazeLevel / 100f;
         if (gazeText != null)
             gazeText.text = $"시선: {bm.gazeLevel}";
+
+        if (deckCountText != null)
+            deckCountText.text = $"덱: {bm.deck.Count}";
+        if (discardCountText != null)
+            discardCountText.text = $"버림: {bm.discardPile.Count}";
     }
 
     public void UpdateMonsterIntent()

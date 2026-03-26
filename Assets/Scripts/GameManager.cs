@@ -16,8 +16,9 @@ public class GameManager : MonoBehaviour
     public Vector2Int savedRoomGridPos = Vector2Int.zero;
 
     [Header("시작 덱 설정")]
-    public CardData strikeCard;  // 타격 카드
-    public CardData defendCard;  // 방어 카드
+    public CardData[] startingDeck; // 원하는 카드 몇 장이든 넣기 가능
+    public int strikeCount = 5;     // 타격 몇 장
+    public int defendCount = 5;     // 방어 몇 장
 
     [Header("덱 관리")]
     public List<CardData> playerDeck = new List<CardData>();
@@ -40,14 +41,10 @@ public class GameManager : MonoBehaviour
     {
         playerDeck.Clear();
 
-        // 타격 5장 + 방어 5장
-        for (int i = 0; i < 5; i++)
+        foreach (CardData card in startingDeck)
         {
-            if (strikeCard != null) playerDeck.Add(strikeCard);
-        }
-        for (int i = 0; i < 5; i++)
-        {
-            if (defendCard != null) playerDeck.Add(defendCard);
+            if (card != null)
+                playerDeck.Add(card);
         }
 
         Debug.Log($"시작 덱 초기화: {playerDeck.Count}장");
