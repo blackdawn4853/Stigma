@@ -34,7 +34,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 10, y: 65}
+  m_AnchoredPosition: {x: -17.5, y: 98.6}
   m_SizeDelta: {x: 75, y: 18}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5995230169532368077
@@ -173,8 +173,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -57}
-  m_SizeDelta: {x: 110, y: 45}
+  m_AnchoredPosition: {x: 0.000024319, y: -83.4}
+  m_SizeDelta: {x: 128.0044, y: 63.4136}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &561456262663035403
 CanvasRenderer:
@@ -312,7 +312,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -43, y: 63}
+  m_AnchoredPosition: {x: -63.1, y: 94.9}
   m_SizeDelta: {x: 30, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &625567390367881539
@@ -455,7 +455,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 120, y: 160}
+  m_SizeDelta: {x: 180, y: 240}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &7500431329311336059
 CanvasRenderer:
@@ -568,7 +568,7 @@ MonoBehaviour:
   manaCostText: {fileID: 2082758533687744391}
   cardBackground: {fileID: 0}
   rarityBorder: {fileID: 0}
-  hoverScale: 1.4
+  hoverScale: 1.6
   hoverSpeed: 8
-  hoverYOffset: 30
+  hoverYOffset: 70
   arrowTriggerDistance: 80

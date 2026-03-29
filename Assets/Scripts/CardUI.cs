@@ -13,12 +13,12 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public Image rarityBorder;
 
     [Header("호버 설정")]
-    public float hoverScale = 1.4f;
+    public float hoverScale = 1.6f;
     public float hoverSpeed = 8f;
-    public float hoverYOffset = 30f;
+    public float hoverYOffset = 80f;
 
     [Header("드래그 설정")]
-    public float arrowTriggerDistance = 80f; // 이 거리 이상 드래그하면 화살표 모드
+    public float arrowTriggerDistance = 80f;
 
     private CardData cardData;
     private Vector3 originalScale;
@@ -93,7 +93,6 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
         {
             if (distance < arrowTriggerDistance)
             {
-                // 카드가 따라옴
                 Vector3 worldPos;
                 RectTransformUtility.ScreenPointToWorldPointInRectangle(
                     canvas.GetComponent<RectTransform>(),
@@ -104,7 +103,6 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
             }
             else
             {
-                // 화살표 모드 전환
                 isArrowMode = true;
                 transform.localPosition = originalPosition;
                 targetPosition = originalPosition;
@@ -175,9 +173,9 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public void Setup(CardData data)
     {
         cardData = data;
-        cardNameText.text = data.cardName;
-        descriptionText.text = data.description;
-        manaCostText.text = data.manaCost.ToString();
+        if (cardNameText != null) cardNameText.text = data.cardName;
+        if (descriptionText != null) descriptionText.text = data.description;
+        if (manaCostText != null) manaCostText.text = data.manaCost.ToString();
 
         if (rarityBorder != null)
             rarityBorder.color = data.GetRarityColor();
