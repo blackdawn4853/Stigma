@@ -327,7 +327,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 957940789}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.3937037
+  m_Size: 0.35704514
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -464,7 +464,7 @@ MonoBehaviour:
   shopChance: 20
   randomEventChance: 20
   layerHeight: -150
-  nodeSpacing: 200
+  nodeSpacing: 100
 --- !u!4 &595515135
 Transform:
   m_ObjectHideFlags: 0
