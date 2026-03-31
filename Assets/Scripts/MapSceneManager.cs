@@ -36,6 +36,11 @@ public class MapSceneManager : MonoBehaviour
         float layerHeight = MapGenerator.Instance.layerHeight;
         int maxLayer = layers.Count - 1;
 
+        float totalHeight = topPadding + (maxLayer * layerHeight) + bottomPadding;
+
+        mapContainer.pivot = new Vector2(0.5f, 1f);
+        mapContainer.sizeDelta = new Vector2(mapContainer.sizeDelta.x, totalHeight);
+
         foreach (var layer in layers)
         {
             foreach (var nodeData in layer)
@@ -44,30 +49,29 @@ public class MapSceneManager : MonoBehaviour
             }
         }
 
+        DrawAllLines(layers);
+
         if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
         {
             GameManager.Instance.returningFromBattle = false;
             RestoreMapState();
         }
 
-        StartCoroutine(SetScrollToBottom());
+        StartCoroutine(ScrollToBottom());
     }
 
-    IEnumerator SetScrollToBottom()
+    IEnumerator ScrollToBottom()
     {
         yield return null;
         yield return null;
 
-        float layerHeight = MapGenerator.Instance.layerHeight;
-        int maxLayer = MapGenerator.Instance.GetLayers().Count - 1;
-        float totalHeight = topPadding + (maxLayer * layerHeight) + bottomPadding;
-        mapContainer.sizeDelta = new Vector2(1920f, totalHeight);
-
-        yield return null;
+        Canvas.ForceUpdateCanvases();
 
         ScrollRect scrollRect = mapContainer.GetComponentInParent<ScrollRect>();
         if (scrollRect != null)
             scrollRect.verticalNormalizedPosition = 0f;
+        else
+            Debug.LogWarning("ScrollRect를 찾지 못했어!");
     }
 
     void SpawnNodeUI(NodeData nodeData, float layerHeight, int maxLayer)
@@ -81,8 +85,34 @@ public class MapSceneManager : MonoBehaviour
         rt.anchoredPosition = new Vector2(nodeData.position.x, yPos);
 
         MapNodeUI nodeUI = nodeObj.GetComponent<MapNodeUI>();
-        nodeUI.Setup(nodeData);
-        allNodeUIs.Add(nodeUI);
+        if (nodeUI != null)
+        {
+            nodeUI.Setup(nodeData);
+            allNodeUIs.Add(nodeUI);
+        }
+    }
+
+    void DrawAllLines(List<List<NodeData>> layers)
+    {
+        if (linePrefab == null) return;
+
+        float layerHeight = MapGenerator.Instance.layerHeight;
+        int maxLayer = layers.Count - 1;
+
+        foreach (var layer in layers)
+        {
+            foreach (var nodeData in layer)
+            {
+                foreach (var nextNode in nodeData.nextNodes)
+                {
+                    float fromY = -(topPadding + (maxLayer - nodeData.layer) * layerHeight);
+                    float toY   = -(topPadding + (maxLayer - nextNode.layer) * layerHeight);
+                    Vector2 from = new Vector2(nodeData.position.x, fromY);
+                    Vector2 to   = new Vector2(nextNode.position.x, toY);
+                    DrawLine(from, to);
+                }
+            }
+        }
     }
 
     void DrawLine(Vector2 from, Vector2 to)
