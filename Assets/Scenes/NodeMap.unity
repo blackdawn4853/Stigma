@@ -242,7 +242,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 1904, y: 964}
+  m_SizeDelta: {x: 1920, y: 3300}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!1 &384296373
 GameObject:
@@ -326,8 +326,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 957940790}
   m_HandleRect: {fileID: 957940789}
   m_Direction: 2
-  m_Value: 0
-  m_Size: 1
+  m_Value: 1
+  m_Size: 0.3221212
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -438,9 +438,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapSceneManager
   mapContainer: {fileID: 262437144}
   nodeUIPrefab: {fileID: 5520251700261969120, guid: 6fe56e7c968ea2241af2d4fc566c4856, type: 3}
-  linePrefab: {fileID: 0}
-  topPadding: 100
-  bottomPadding: 100
+  linePrefab: {fileID: 2686625297368524219, guid: 248ad631fe9a3cc4cb68831028551e42, type: 3}
+  topPadding: 50
+  bottomPadding: 50
 --- !u!114 &595515134
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -458,13 +458,16 @@ MonoBehaviour:
   minStartNodes: 3
   maxStartNodes: 5
   minNextNodes: 1
-  maxNextNodes: 3
+  maxNextNodes: 2
   maxNodesPerLayer: 5
   combatChance: 60
-  shopChance: 20
-  randomEventChance: 20
-  layerHeight: 150
-  nodeSpacing: 100
+  shopChance: 10
+  randomEventChance: 30
+  layerHeight: 200
+  nodeSpacing: 150
+  randomOffsetX: 70
+  randomOffsetY: 40
+  minNodeDistance: 120
 --- !u!4 &595515135
 Transform:
   m_ObjectHideFlags: 0
@@ -941,7 +944,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 1745761766}
   m_Direction: 0
   m_Value: 0.5
-  m_Size: 0.99947476
+  m_Size: 0.99114585
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -1174,6 +1177,77 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1879901422
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1879901424}
+  - component: {fileID: 1879901423}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1879901423
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1879901422}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ec525268ed84be46b0ea4dd652b51de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  playerMaxHp: 50
+  playerCurrentHp: 50
+  playerGold: 100
+  returningFromBattle: 0
+  savedRoomGridPos: {x: 0, y: 0}
+  startNodeUnlocked: 0
+  bossesDefeated: 0
+  startingDeck:
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  strikeCount: 5
+  defendCount: 5
+  playerDeck: []
+  allCards:
+  - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
+  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
+  - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
+  - {fileID: 11400000, guid: 07a652ff8a5bea54a92d88d4992e14b4, type: 2}
+--- !u!4 &1879901424
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1879901422}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.18313, y: -2.13283, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1182,3 +1256,4 @@ SceneRoots:
   - {fileID: 680941834}
   - {fileID: 1876397422}
   - {fileID: 595515135}
+  - {fileID: 1879901424}

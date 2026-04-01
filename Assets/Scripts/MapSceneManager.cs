@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -17,6 +18,7 @@ public class MapSceneManager : MonoBehaviour
 
     private NodeData currentNode;
     private List<MapNodeUI> allNodeUIs = new List<MapNodeUI>();
+    private Dictionary<NodeData, Vector2> nodeUIPositions = new Dictionary<NodeData, Vector2>();
 
     void Awake()
     {
@@ -31,25 +33,36 @@ public class MapSceneManager : MonoBehaviour
 
     void GenerateAndDisplayMap()
     {
+        nodeUIPositions.Clear();
+
         List<List<NodeData>> layers = MapGenerator.Instance.GenerateMap();
 
         float layerHeight = MapGenerator.Instance.layerHeight;
         int maxLayer = layers.Count - 1;
 
-        float totalHeight = topPadding + (maxLayer * layerHeight) + bottomPadding;
+        float totalHeight = bottomPadding + (maxLayer * layerHeight) + topPadding;
 
-        mapContainer.pivot = new Vector2(0.5f, 1f);
-        mapContainer.sizeDelta = new Vector2(mapContainer.sizeDelta.x, totalHeight);
+        mapContainer.anchorMin = new Vector2(0.5f, 0f);
+        mapContainer.anchorMax = new Vector2(0.5f, 0f);
+        mapContainer.pivot = new Vector2(0.5f, 0f);
+        mapContainer.anchoredPosition = Vector2.zero;
+        mapContainer.sizeDelta = new Vector2(1920f, totalHeight);
 
         foreach (var layer in layers)
-        {
             foreach (var nodeData in layer)
             {
-                SpawnNodeUI(nodeData, layerHeight, maxLayer);
+                float xPos = nodeData.position.x;
+                float yPos = bottomPadding + nodeData.position.y;
+                nodeUIPositions[nodeData] = new Vector2(xPos, yPos);
             }
-        }
 
         DrawAllLines(layers);
+
+        foreach (var layer in layers)
+            foreach (var nodeData in layer)
+                SpawnNodeUI(nodeData, layerHeight);
+
+        InitializeStartState(layers);
 
         if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
         {
@@ -60,10 +73,35 @@ public class MapSceneManager : MonoBehaviour
         StartCoroutine(ScrollToBottom());
     }
 
+    void InitializeStartState(List<List<NodeData>> layers)
+    {
+        if (layers.Count < 2) return;
+
+        NodeData startNode = layers[0][0];
+
+        if (GameManager.Instance != null && GameManager.Instance.startNodeUnlocked)
+        {
+            startNode.isAccessible = true;
+        }
+        else
+        {
+            startNode.isAccessible = false;
+            startNode.isVisited = true;
+
+            foreach (var node in layers[1])
+                node.isAccessible = true;
+
+            currentNode = startNode;
+        }
+
+        RefreshAllNodes();
+    }
+
     IEnumerator ScrollToBottom()
     {
         yield return null;
         yield return null;
+        yield return new WaitForEndOfFrame();
 
         Canvas.ForceUpdateCanvases();
 
@@ -71,18 +109,20 @@ public class MapSceneManager : MonoBehaviour
         if (scrollRect != null)
             scrollRect.verticalNormalizedPosition = 0f;
         else
-            Debug.LogWarning("ScrollRect를 찾지 못했어!");
+            Debug.LogWarning("ScrollRect 못 찾음!");
     }
 
-    void SpawnNodeUI(NodeData nodeData, float layerHeight, int maxLayer)
+    void SpawnNodeUI(NodeData nodeData, float layerHeight)
     {
         if (nodeUIPrefab == null || mapContainer == null) return;
 
         GameObject nodeObj = Instantiate(nodeUIPrefab, mapContainer);
         RectTransform rt = nodeObj.GetComponent<RectTransform>();
 
-        float yPos = -(topPadding + (maxLayer - nodeData.layer) * layerHeight);
-        rt.anchoredPosition = new Vector2(nodeData.position.x, yPos);
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = nodeUIPositions[nodeData];
 
         MapNodeUI nodeUI = nodeObj.GetComponent<MapNodeUI>();
         if (nodeUI != null)
@@ -96,23 +136,14 @@ public class MapSceneManager : MonoBehaviour
     {
         if (linePrefab == null) return;
 
-        float layerHeight = MapGenerator.Instance.layerHeight;
-        int maxLayer = layers.Count - 1;
-
         foreach (var layer in layers)
-        {
             foreach (var nodeData in layer)
-            {
                 foreach (var nextNode in nodeData.nextNodes)
                 {
-                    float fromY = -(topPadding + (maxLayer - nodeData.layer) * layerHeight);
-                    float toY   = -(topPadding + (maxLayer - nextNode.layer) * layerHeight);
-                    Vector2 from = new Vector2(nodeData.position.x, fromY);
-                    Vector2 to   = new Vector2(nextNode.position.x, toY);
-                    DrawLine(from, to);
+                    if (!nodeUIPositions.ContainsKey(nodeData) || !nodeUIPositions.ContainsKey(nextNode))
+                        continue;
+                    DrawLine(nodeUIPositions[nodeData], nodeUIPositions[nextNode]);
                 }
-            }
-        }
     }
 
     void DrawLine(Vector2 from, Vector2 to)
@@ -121,9 +152,15 @@ public class MapSceneManager : MonoBehaviour
 
         GameObject lineObj = Instantiate(linePrefab, mapContainer);
         RectTransform rt = lineObj.GetComponent<RectTransform>();
+
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = (from + to) / 2f;
+
         float distance = Vector2.Distance(from, to);
         rt.sizeDelta = new Vector2(distance, 4f);
+
         Vector2 dir = to - from;
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         rt.localRotation = Quaternion.Euler(0, 0, angle);
@@ -135,21 +172,37 @@ public class MapSceneManager : MonoBehaviour
             currentNode.isVisited = true;
 
         currentNode = nodeData;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.Save();
+
         UpdateAccessibleNodes();
 
         switch (nodeData.nodeType)
         {
+            case NodeData.NodeType.Start:
+                Debug.Log("시작 노드 클릭 — 추후 구현");
+                break;
             case NodeData.NodeType.Combat:
-                GameManager.Instance.LoadBattle();
+                if (GameManager.Instance != null)
+                    GameManager.Instance.LoadBattle();
+                else
+                    SceneManager.LoadScene("BattleScene");
                 break;
             case NodeData.NodeType.Shop:
-                GameManager.Instance.LoadShop();
+                if (GameManager.Instance != null)
+                    GameManager.Instance.LoadShop();
+                else
+                    SceneManager.LoadScene("ShopScene");
                 break;
             case NodeData.NodeType.RandomEvent:
                 Debug.Log("랜덤 이벤트!");
                 break;
             case NodeData.NodeType.Boss:
-                GameManager.Instance.LoadBattle();
+                if (GameManager.Instance != null)
+                    GameManager.Instance.LoadBattle();
+                else
+                    SceneManager.LoadScene("BattleScene");
                 break;
         }
 
