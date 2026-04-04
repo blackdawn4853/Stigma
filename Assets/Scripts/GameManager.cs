@@ -103,6 +103,14 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("NodeMap");
     }
 
+    public void LoadCutscene()
+    {
+        if (FadeManager.Instance != null)
+            FadeManager.Instance.FadeToScene("Cutscene");
+        else
+            SceneManager.LoadScene("Cutscene");
+    }
+
     public void QuitGame()
     {
         Application.Quit();
