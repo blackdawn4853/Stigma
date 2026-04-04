@@ -97,6 +97,18 @@ public class GameManager : MonoBehaviour
         Debug.Log($"덱에 추가: {card.cardName} | 현재 덱: {playerDeck.Count}장");
     }
 
+    // ────────────── 씬 이동 ──────────────
+    public void LoadNodeMap()
+    {
+        SceneManager.LoadScene("NodeMap");
+    }
+
+    public void QuitGame()
+    {
+        Application.Quit();
+        Debug.Log("게임 종료"); // 에디터에서는 Quit이 안 먹혀서 로그로 확인
+    }
+
     public void LoadBattle()
     {
         SceneManager.LoadScene("BattleScene");
@@ -113,6 +125,7 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("NodeMap");
     }
 
+    // ────────────── 세이브 ──────────────
     public void Save()
     {
         SaveData data = new SaveData();
