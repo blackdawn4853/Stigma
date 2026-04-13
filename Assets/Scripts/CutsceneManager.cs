@@ -38,11 +38,11 @@ public class CutsceneManager : MonoBehaviour
         {
             // 4번째 집 지붕/하늘 클로즈업 (사람 안 보임)
             new CutsceneShot("인간들은 신에게 간청했다.",
-                new Vector2(300f, 120f), 3.5f, 0f, 3f),
+                new Vector2(145f, -220f), 3.5f, 0f, 3f),
 
             // 왼쪽 집들로 스크롤 (사람 안 보임)
             new CutsceneShot("번영을, 힘을, 그리고 구원을.",
-                new Vector2(2310f, -1015f), 3.5f, 2f, 2f),
+                new Vector2(-120f, 236f), 3.5f, 2f, 2f),
 
             // 멈춤
             new CutsceneShot("침묵 속에서 마침내, 응답이 내려왔으니.",
