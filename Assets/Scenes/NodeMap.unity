@@ -1221,9 +1221,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
   - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
   - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
-  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
-  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
-  - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
+  - {fileID: 11400000, guid: 07a652ff8a5bea54a92d88d4992e14b4, type: 2}
+  - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
+  - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
   strikeCount: 5
   defendCount: 5
   playerDeck: []
