@@ -149,10 +149,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RewardScene
   allCards:
-  - {fileID: 11400000, guid: a0e64fec98fe3ac4aabb0d07292b5619, type: 2}
-  - {fileID: 11400000, guid: 625e129d6f4834749ae5a4f5904e0fcd, type: 2}
-  - {fileID: 11400000, guid: 11795bcef8f14b84d80fc34829c46071, type: 2}
-  - {fileID: 11400000, guid: 18f06b70fda045c4f9f0b85937fcd72d, type: 2}
+  - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
+  - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
+  - {fileID: 11400000, guid: 07a652ff8a5bea54a92d88d4992e14b4, type: 2}
   rewardCount: 3
   cardPrefab: {fileID: 8149141036068456981, guid: 6843cc8c09f46134b9f58973ef6fda51, type: 3}
   cardContainer: {fileID: 2124917217}

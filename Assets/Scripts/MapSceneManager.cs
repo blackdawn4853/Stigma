@@ -19,6 +19,7 @@ public class MapSceneManager : MonoBehaviour
     private NodeData currentNode;
     private List<MapNodeUI> allNodeUIs = new List<MapNodeUI>();
     private Dictionary<NodeData, Vector2> nodeUIPositions = new Dictionary<NodeData, Vector2>();
+    private List<List<NodeData>> currentLayers;
 
     void Awake()
     {
@@ -34,12 +35,23 @@ public class MapSceneManager : MonoBehaviour
     void GenerateAndDisplayMap()
     {
         nodeUIPositions.Clear();
+        allNodeUIs.Clear();
 
-        List<List<NodeData>> layers = MapGenerator.Instance.GenerateMap();
+        // ✅ 복귀 시 기존 레이어 재사용, 아니면 새로 생성
+        if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
+            currentLayers = MapGenerator.Instance.GetLayers();
+        else
+            currentLayers = MapGenerator.Instance.GenerateMap();
+
+        // 모든 노드 전투로 강제 (보스/시작 제외)
+        foreach (var layer in currentLayers)
+            foreach (var node in layer)
+                if (node.nodeType != NodeData.NodeType.Boss &&
+                    node.nodeType != NodeData.NodeType.Start)
+                    node.nodeType = NodeData.NodeType.Combat;
 
         float layerHeight = MapGenerator.Instance.layerHeight;
-        int maxLayer = layers.Count - 1;
-
+        int maxLayer = currentLayers.Count - 1;
         float totalHeight = bottomPadding + (maxLayer * layerHeight) + topPadding;
 
         mapContainer.anchorMin = new Vector2(0.5f, 0f);
@@ -48,7 +60,7 @@ public class MapSceneManager : MonoBehaviour
         mapContainer.anchoredPosition = Vector2.zero;
         mapContainer.sizeDelta = new Vector2(1920f, totalHeight);
 
-        foreach (var layer in layers)
+        foreach (var layer in currentLayers)
             foreach (var nodeData in layer)
             {
                 float xPos = nodeData.position.x;
@@ -56,20 +68,24 @@ public class MapSceneManager : MonoBehaviour
                 nodeUIPositions[nodeData] = new Vector2(xPos, yPos);
             }
 
-        DrawAllLines(layers);
+        DrawAllLines(currentLayers);
 
-        foreach (var layer in layers)
+        foreach (var layer in currentLayers)
             foreach (var nodeData in layer)
                 SpawnNodeUI(nodeData, layerHeight);
-
-        InitializeStartState(layers);
 
         if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
         {
             GameManager.Instance.returningFromBattle = false;
-            RestoreMapState();
+            GameManager.Instance.RestoreMapState(currentLayers);
+            RestoreCurrentNode();
+        }
+        else
+        {
+            InitializeStartState(currentLayers);
         }
 
+        RefreshAllNodes();
         StartCoroutine(ScrollToBottom());
     }
 
@@ -78,23 +94,23 @@ public class MapSceneManager : MonoBehaviour
         if (layers.Count < 2) return;
 
         NodeData startNode = layers[0][0];
+        startNode.isAccessible = false;
+        startNode.isVisited = true;
+        currentNode = startNode;
 
-        if (GameManager.Instance != null && GameManager.Instance.startNodeUnlocked)
-        {
-            startNode.isAccessible = true;
-        }
-        else
-        {
-            startNode.isAccessible = false;
-            startNode.isVisited = true;
+        foreach (var node in layers[1])
+            node.isAccessible = true;
+    }
 
-            foreach (var node in layers[1])
-                node.isAccessible = true;
+    void RestoreCurrentNode()
+    {
+        if (GameManager.Instance == null) return;
+        int layer = GameManager.Instance.currentNodeLayer;
+        int index = GameManager.Instance.currentNodeIndex;
 
-            currentNode = startNode;
-        }
-
-        RefreshAllNodes();
+        if (layer >= 0 && layer < currentLayers.Count &&
+            index >= 0 && index < currentLayers[layer].Count)
+            currentNode = currentLayers[layer][index];
     }
 
     IEnumerator ScrollToBottom()
@@ -102,14 +118,11 @@ public class MapSceneManager : MonoBehaviour
         yield return null;
         yield return null;
         yield return new WaitForEndOfFrame();
-
         Canvas.ForceUpdateCanvases();
 
         ScrollRect scrollRect = mapContainer.GetComponentInParent<ScrollRect>();
         if (scrollRect != null)
             scrollRect.verticalNormalizedPosition = 0f;
-        else
-            Debug.LogWarning("ScrollRect 못 찾음!");
     }
 
     void SpawnNodeUI(NodeData nodeData, float layerHeight)
@@ -172,16 +185,20 @@ public class MapSceneManager : MonoBehaviour
             currentNode.isVisited = true;
 
         currentNode = nodeData;
+        UpdateAccessibleNodes();
 
         if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SaveMapState(currentLayers, currentNode);
             GameManager.Instance.Save();
+        }
 
-        UpdateAccessibleNodes();
+        RefreshAllNodes();
 
         switch (nodeData.nodeType)
         {
             case NodeData.NodeType.Start:
-                Debug.Log("시작 노드 클릭 — 추후 구현");
+                Debug.Log("시작 노드 — 추후 구현");
                 break;
             case NodeData.NodeType.Combat:
                 if (GameManager.Instance != null)
@@ -205,8 +222,6 @@ public class MapSceneManager : MonoBehaviour
                     SceneManager.LoadScene("BattleScene");
                 break;
         }
-
-        RefreshAllNodes();
     }
 
     void UpdateAccessibleNodes()
@@ -215,22 +230,14 @@ public class MapSceneManager : MonoBehaviour
             nodeUI.GetNodeData().isAccessible = false;
 
         if (currentNode != null)
-        {
             foreach (var nextNode in currentNode.nextNodes)
                 nextNode.isAccessible = true;
-        }
     }
 
     void RefreshAllNodes()
     {
         foreach (var nodeUI in allNodeUIs)
             nodeUI.UpdateVisual();
-    }
-
-    void RestoreMapState()
-    {
-        UpdateAccessibleNodes();
-        RefreshAllNodes();
     }
 
     public NodeData GetCurrentNode() => currentNode;

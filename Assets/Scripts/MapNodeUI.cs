@@ -7,6 +7,7 @@ public class MapNodeUI : MonoBehaviour
     [Header("UI 요소")]
     public Image nodeImage;
     public TextMeshProUGUI nodeTypeText;
+    public GameObject visitedMark; // ✅ X 표시 오브젝트
 
     [Header("노드 색상")]
     public Color startColor = new Color(0.2f, 0.8f, 0.2f);
@@ -29,7 +30,11 @@ public class MapNodeUI : MonoBehaviour
     {
         if (nodeData == null) return;
 
-        // 텍스트 설정
+        // ✅ X 표시 (방문한 노드)
+        if (visitedMark != null)
+            visitedMark.SetActive(nodeData.isVisited);
+
+        // 텍스트
         if (nodeTypeText != null)
         {
             switch (nodeData.nodeType)
@@ -42,7 +47,7 @@ public class MapNodeUI : MonoBehaviour
             }
         }
 
-        // 색상 설정
+        // 색상
         if (nodeImage != null)
         {
             if (nodeData.isVisited)

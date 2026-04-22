@@ -34,8 +34,15 @@ public class MapGenerator : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
     public List<List<NodeData>> GenerateMap()
@@ -44,7 +51,6 @@ public class MapGenerator : MonoBehaviour
 
         int totalLayers = Random.Range(minLayers, maxLayers + 1);
 
-        // 1. 시작 노드
         List<NodeData> startLayer = new List<NodeData>();
         startNode = new NodeData();
         startNode.nodeType = NodeData.NodeType.Start;
@@ -54,12 +60,10 @@ public class MapGenerator : MonoBehaviour
         startLayer.Add(startNode);
         layers.Add(startLayer);
 
-        // 2. 첫 번째 층
         int firstLayerCount = Random.Range(minStartNodes, maxStartNodes + 1);
         List<NodeData> firstLayer = CreateLayer(1, firstLayerCount);
         layers.Add(firstLayer);
 
-        // 3. 중간 층들
         for (int i = 2; i < totalLayers; i++)
         {
             int nodeCount = Random.Range(2, maxNodesPerLayer + 1);
@@ -67,7 +71,6 @@ public class MapGenerator : MonoBehaviour
             layers.Add(layer);
         }
 
-        // 4. 보스 노드
         List<NodeData> bossLayer = new List<NodeData>();
         bossNode = new NodeData();
         bossNode.nodeType = NodeData.NodeType.Boss;
@@ -76,11 +79,8 @@ public class MapGenerator : MonoBehaviour
         bossLayer.Add(bossNode);
         layers.Add(bossLayer);
 
-        // ✅ 위치 먼저 계산
         CalculatePositions();
 
-        // ✅ 실제 X 위치 기준으로 연결 (교차 방지)
-        // 시작 → 첫 번째 층
         List<NodeData> sortedFirst = SortByX(layers[1]);
         foreach (var node in sortedFirst)
         {
@@ -88,13 +88,10 @@ public class MapGenerator : MonoBehaviour
             node.prevNodes.Add(startNode);
         }
 
-        // 중간 층 연결
         for (int i = 1; i < layers.Count - 1; i++)
             ConnectLayers(layers[i], layers[i + 1]);
 
         Debug.Log($"맵 생성 완료! 총 층 수: {layers.Count}");
-        foreach (var layer in layers)
-            Debug.Log($"층 {layer[0].layer}: {layer.Count}개 노드");
 
         return layers;
     }
@@ -122,11 +119,9 @@ public class MapGenerator : MonoBehaviour
 
     void ConnectLayers(List<NodeData> currentLayer, List<NodeData> nextLayer)
     {
-        // ✅ 실제 X 위치 기준으로 정렬
         List<NodeData> sortedCurrent = SortByX(currentLayer);
         List<NodeData> sortedNext = SortByX(nextLayer);
 
-        // ✅ 다음 층 모든 노드 최소 1개 연결 보장
         for (int i = 0; i < sortedNext.Count; i++)
         {
             int mappedIndex = Mathf.RoundToInt((float)i / (sortedNext.Count - 0.99f) * (sortedCurrent.Count - 1));
@@ -142,21 +137,18 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        // ✅ 현재 층 모든 노드 최소 1개 연결 보장
         for (int i = 0; i < sortedCurrent.Count; i++)
         {
             if (sortedCurrent[i].nextNodes.Count == 0)
             {
                 int mappedIndex = Mathf.RoundToInt((float)i / (sortedCurrent.Count - 0.99f) * (sortedNext.Count - 1));
                 mappedIndex = Mathf.Clamp(mappedIndex, 0, sortedNext.Count - 1);
-
                 NodeData to = sortedNext[mappedIndex];
                 sortedCurrent[i].nextNodes.Add(to);
                 to.prevNodes.Add(sortedCurrent[i]);
             }
         }
 
-        // ✅ 추가 연결 (X 순서 기준으로 인접 노드에만)
         for (int i = 0; i < sortedCurrent.Count; i++)
         {
             int extraConnections = Random.Range(0, maxNextNodes);
@@ -164,7 +156,6 @@ public class MapGenerator : MonoBehaviour
             {
                 int minIdx = Mathf.Max(0, Mathf.FloorToInt((float)i / sortedCurrent.Count * sortedNext.Count) - 1);
                 int maxIdx = Mathf.Min(sortedNext.Count - 1, Mathf.CeilToInt((float)(i + 1) / sortedCurrent.Count * sortedNext.Count));
-
                 int randomIdx = Random.Range(minIdx, maxIdx + 1);
                 NodeData to = sortedNext[randomIdx];
 
@@ -228,11 +219,7 @@ public class MapGenerator : MonoBehaviour
                         }
                     }
 
-                    if (!tooClose)
-                    {
-                        found = true;
-                        break;
-                    }
+                    if (!tooClose) { found = true; break; }
                 }
 
                 layer[j].position = found ? candidate : new Vector2(baseX, baseY);

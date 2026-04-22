@@ -415,7 +415,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 595515135}
-  - component: {fileID: 595515134}
   - component: {fileID: 595515133}
   m_Layer: 0
   m_Name: MapManager
@@ -441,33 +440,6 @@ MonoBehaviour:
   linePrefab: {fileID: 2686625297368524219, guid: 248ad631fe9a3cc4cb68831028551e42, type: 3}
   topPadding: 50
   bottomPadding: 50
---- !u!114 &595515134
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 595515132}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 11139a31ce2536a4c8e51b2b8c68fc3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MapGenerator
-  minLayers: 15
-  maxLayers: 20
-  minStartNodes: 3
-  maxStartNodes: 5
-  minNextNodes: 1
-  maxNextNodes: 2
-  maxNodesPerLayer: 5
-  combatChance: 60
-  shopChance: 10
-  randomEventChance: 30
-  layerHeight: 200
-  nodeSpacing: 150
-  randomOffsetX: 70
-  randomOffsetY: 40
-  minNodeDistance: 120
 --- !u!4 &595515135
 Transform:
   m_ObjectHideFlags: 0
@@ -781,6 +753,65 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &787590355
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 787590357}
+  - component: {fileID: 787590356}
+  m_Layer: 0
+  m_Name: MapGeneratorObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &787590356
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 787590355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11139a31ce2536a4c8e51b2b8c68fc3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapGenerator
+  minLayers: 15
+  maxLayers: 20
+  minStartNodes: 3
+  maxStartNodes: 5
+  minNextNodes: 1
+  maxNextNodes: 2
+  maxNodesPerLayer: 5
+  combatChance: 60
+  shopChance: 10
+  randomEventChance: 30
+  layerHeight: 200
+  nodeSpacing: 150
+  randomOffsetX: 70
+  randomOffsetY: 40
+  minNodeDistance: 120
+--- !u!4 &787590357
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 787590355}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 960.40106, y: 519.63403, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1210,7 +1241,6 @@ MonoBehaviour:
   playerCurrentHp: 50
   playerGold: 100
   returningFromBattle: 0
-  savedRoomGridPos: {x: 0, y: 0}
   startNodeUnlocked: 0
   bossesDefeated: 0
   startingDeck:
@@ -1233,6 +1263,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
   - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
   - {fileID: 11400000, guid: 07a652ff8a5bea54a92d88d4992e14b4, type: 2}
+  savedNodeStates: []
+  currentNodeLayer: -1
+  currentNodeIndex: -1
 --- !u!4 &1879901424
 Transform:
   m_ObjectHideFlags: 0
@@ -1257,3 +1290,4 @@ SceneRoots:
   - {fileID: 1876397422}
   - {fileID: 595515135}
   - {fileID: 1879901424}
+  - {fileID: 787590357}

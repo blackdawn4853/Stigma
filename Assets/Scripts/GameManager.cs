@@ -14,6 +14,15 @@ public class SaveData
     public List<string> deckCardNames = new List<string>();
 }
 
+[System.Serializable]
+public class NodeState
+{
+    public int layer;
+    public int index;
+    public bool isVisited;
+    public bool isAccessible;
+}
+
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
@@ -25,7 +34,6 @@ public class GameManager : MonoBehaviour
 
     [Header("던전 상태")]
     public bool returningFromBattle = false;
-    public Vector2Int savedRoomGridPos = Vector2Int.zero;
 
     [Header("진행 상태")]
     public bool startNodeUnlocked = false;
@@ -41,6 +49,11 @@ public class GameManager : MonoBehaviour
 
     [Header("전체 카드 목록 (세이브/로드용)")]
     public CardData[] allCards;
+
+    // 맵 상태 저장
+    [HideInInspector] public List<NodeState> savedNodeStates = new List<NodeState>();
+    [HideInInspector] public int currentNodeLayer = -1;
+    [HideInInspector] public int currentNodeIndex = -1;
 
     private string SavePath => Application.persistentDataPath + "/save.json";
 
@@ -61,24 +74,15 @@ public class GameManager : MonoBehaviour
     public void InitializeDeck()
     {
         playerDeck.Clear();
-
         foreach (CardData card in startingDeck)
-        {
-            if (card != null)
-                playerDeck.Add(card);
-        }
-
+            if (card != null) playerDeck.Add(card);
         Debug.Log($"시작 덱 초기화: {playerDeck.Count}장");
     }
 
     public void OnBossDefeated()
     {
         bossesDefeated++;
-
-        if (bossesDefeated >= 1)
-            startNodeUnlocked = true;
-
-        Debug.Log($"보스 처치! 총 {bossesDefeated}회 | 시작 노드 해금: {startNodeUnlocked}");
+        if (bossesDefeated >= 1) startNodeUnlocked = true;
         Save();
     }
 
@@ -87,7 +91,9 @@ public class GameManager : MonoBehaviour
         playerCurrentHp = playerMaxHp;
         playerGold = 100;
         InitializeDeck();
-        Debug.Log("게임 오버!");
+        savedNodeStates.Clear();
+        currentNodeLayer = -1;
+        currentNodeIndex = -1;
         SceneManager.LoadScene("NodeMap");
     }
 
@@ -97,7 +103,6 @@ public class GameManager : MonoBehaviour
         Debug.Log($"덱에 추가: {card.cardName} | 현재 덱: {playerDeck.Count}장");
     }
 
-    // ────────────── 씬 이동 ──────────────
     public void LoadNodeMap()
     {
         SceneManager.LoadScene("NodeMap");
@@ -109,12 +114,6 @@ public class GameManager : MonoBehaviour
             FadeManager.Instance.FadeToScene("Cutscene");
         else
             SceneManager.LoadScene("Cutscene");
-    }
-
-    public void QuitGame()
-    {
-        Application.Quit();
-        Debug.Log("게임 종료"); // 에디터에서는 Quit이 안 먹혀서 로그로 확인
     }
 
     public void LoadBattle()
@@ -133,7 +132,54 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("NodeMap");
     }
 
-    // ────────────── 세이브 ──────────────
+    public void QuitGame()
+    {
+        Application.Quit();
+        Debug.Log("게임 종료");
+    }
+
+    // 맵 상태 저장
+    public void SaveMapState(List<List<NodeData>> layers, NodeData currentNode)
+    {
+        savedNodeStates.Clear();
+
+        foreach (var layer in layers)
+        {
+            foreach (var node in layer)
+            {
+                savedNodeStates.Add(new NodeState
+                {
+                    layer = node.layer,
+                    index = node.index,
+                    isVisited = node.isVisited,
+                    isAccessible = node.isAccessible
+                });
+            }
+        }
+
+        if (currentNode != null)
+        {
+            currentNodeLayer = currentNode.layer;
+            currentNodeIndex = currentNode.index;
+        }
+    }
+
+    // 맵 상태 복원
+    public void RestoreMapState(List<List<NodeData>> layers)
+    {
+        if (savedNodeStates.Count == 0) return;
+
+        foreach (var state in savedNodeStates)
+        {
+            if (state.layer < layers.Count && state.index < layers[state.layer].Count)
+            {
+                NodeData node = layers[state.layer][state.index];
+                node.isVisited = state.isVisited;
+                node.isAccessible = state.isAccessible;
+            }
+        }
+    }
+
     public void Save()
     {
         SaveData data = new SaveData();
@@ -142,27 +188,19 @@ public class GameManager : MonoBehaviour
         data.playerGold = playerGold;
         data.startNodeUnlocked = startNodeUnlocked;
         data.bossesDefeated = bossesDefeated;
-
         foreach (CardData card in playerDeck)
             data.deckCardNames.Add(card.cardName);
 
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(SavePath, json);
-        Debug.Log($"세이브 완료: {SavePath}");
+        Debug.Log($"세이브 완료");
     }
 
-    public bool HasSaveFile()
-    {
-        return File.Exists(SavePath);
-    }
+    public bool HasSaveFile() => File.Exists(SavePath);
 
     public void Load()
     {
-        if (!HasSaveFile())
-        {
-            Debug.Log("세이브 파일 없음 — 새 게임 시작");
-            return;
-        }
+        if (!HasSaveFile()) return;
 
         string json = File.ReadAllText(SavePath);
         SaveData data = JsonUtility.FromJson<SaveData>(json);
@@ -177,30 +215,20 @@ public class GameManager : MonoBehaviour
         foreach (string cardName in data.deckCardNames)
         {
             CardData found = FindCardByName(cardName);
-            if (found != null)
-                playerDeck.Add(found);
-            else
-                Debug.LogWarning($"카드 못 찾음: {cardName}");
+            if (found != null) playerDeck.Add(found);
         }
-
-        Debug.Log($"로드 완료! HP:{playerCurrentHp}/{playerMaxHp} 골드:{playerGold} 덱:{playerDeck.Count}장");
     }
 
     public void DeleteSave()
     {
-        if (File.Exists(SavePath))
-        {
-            File.Delete(SavePath);
-            Debug.Log("세이브 파일 삭제됨");
-        }
+        if (File.Exists(SavePath)) File.Delete(SavePath);
     }
 
     CardData FindCardByName(string cardName)
     {
         if (allCards == null) return null;
         foreach (CardData card in allCards)
-            if (card != null && card.cardName == cardName)
-                return card;
+            if (card != null && card.cardName == cardName) return card;
         return null;
     }
 }
