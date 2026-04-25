@@ -9,11 +9,17 @@ public class CutsceneManager : MonoBehaviour
     public RectTransform cutsceneImage;
     public TextMeshProUGUI narrationText;
 
+    [Header("스킵 UI (자동 생성 — Inspector에서 직접 연결도 가능)")]
+    public Image skipGaugeFill;
+    private RectTransform skipGaugeFillRT;
+
     [Header("설정")]
     public float typingSpeed = 0.05f;
     public string nextScene = "NodeMap";
+    public float skipHoldDuration = 2f;
 
     private bool isSkipping = false;
+    private float skipProgress = 0f;
 
     private struct CutsceneShot
     {
@@ -65,13 +71,90 @@ public class CutsceneManager : MonoBehaviour
                 new Vector2(0f, 0f), 1f, 2f, 3f),
         };
 
+        if (skipGaugeFill == null && cutsceneImage != null)
+            CreateSkipUI(cutsceneImage.transform.parent as RectTransform);
+
         StartCoroutine(PlayCutscene());
     }
 
     void Update()
     {
+        if (isSkipping) return;
+
         if (Input.GetKey(KeyCode.Escape))
-            isSkipping = true;
+        {
+            skipProgress = Mathf.MoveTowards(skipProgress, 1f, Time.deltaTime / skipHoldDuration);
+            UpdateGaugeVisual(skipProgress);
+            if (skipProgress >= 1f)
+                isSkipping = true;
+        }
+        else if (skipProgress > 0f)
+        {
+            skipProgress = 0f;
+            UpdateGaugeVisual(0f);
+        }
+    }
+
+    void UpdateGaugeVisual(float t)
+    {
+        if (skipGaugeFillRT == null) return;
+        skipGaugeFillRT.anchorMax = new Vector2(t, 1f);
+        skipGaugeFillRT.offsetMax = Vector2.zero;
+    }
+
+    void CreateSkipUI(RectTransform canvasRT)
+    {
+        if (canvasRT == null) return;
+
+        // 컨테이너 — 우하단 고정
+        GameObject container = new GameObject("SkipUI");
+        container.transform.SetParent(canvasRT, false);
+        RectTransform cRT = container.AddComponent<RectTransform>();
+        cRT.anchorMin = new Vector2(1f, 0f);
+        cRT.anchorMax = new Vector2(1f, 0f);
+        cRT.pivot = new Vector2(1f, 0f);
+        cRT.anchoredPosition = new Vector2(-30f, 30f);
+        cRT.sizeDelta = new Vector2(210f, 52f);
+
+        // 반투명 패널 배경
+        Image panelBG = container.AddComponent<Image>();
+        panelBG.color = new Color(0f, 0f, 0f, 0.45f);
+
+        // "ESC - 스킵" 라벨
+        GameObject labelObj = new GameObject("SkipLabel");
+        labelObj.transform.SetParent(container.transform, false);
+        TextMeshProUGUI label = labelObj.AddComponent<TextMeshProUGUI>();
+        label.text = "ESC - 스킵";
+        label.fontSize = 20f;
+        label.alignment = TextAlignmentOptions.Center;
+        label.color = new Color(1f, 1f, 1f, 0.85f);
+        RectTransform lRT = labelObj.GetComponent<RectTransform>();
+        lRT.anchorMin = new Vector2(0f, 0.42f);
+        lRT.anchorMax = Vector2.one;
+        lRT.offsetMin = new Vector2(6f, 0f);
+        lRT.offsetMax = new Vector2(-6f, -4f);
+
+        // 게이지 배경 (어두운 바)
+        GameObject bgObj = new GameObject("GaugeBG");
+        bgObj.transform.SetParent(container.transform, false);
+        Image bgImage = bgObj.AddComponent<Image>();
+        bgImage.color = new Color(0.15f, 0.15f, 0.15f, 0.9f);
+        RectTransform bgRT = bgObj.GetComponent<RectTransform>();
+        bgRT.anchorMin = new Vector2(0f, 0f);
+        bgRT.anchorMax = new Vector2(1f, 0.38f);
+        bgRT.offsetMin = new Vector2(6f, 5f);
+        bgRT.offsetMax = new Vector2(-6f, 0f);
+
+        // 게이지 채움 — anchorMax.x를 skipProgress로 직접 제어
+        GameObject fillObj = new GameObject("GaugeFill");
+        fillObj.transform.SetParent(bgObj.transform, false);
+        skipGaugeFill = fillObj.AddComponent<Image>();
+        skipGaugeFill.color = new Color(0.85f, 0.85f, 1f, 1f);
+        skipGaugeFillRT = fillObj.GetComponent<RectTransform>();
+        skipGaugeFillRT.anchorMin = Vector2.zero;
+        skipGaugeFillRT.anchorMax = new Vector2(0f, 1f); // 시작은 0 너비
+        skipGaugeFillRT.offsetMin = Vector2.zero;
+        skipGaugeFillRT.offsetMax = Vector2.zero;
     }
 
     IEnumerator PlayCutscene()

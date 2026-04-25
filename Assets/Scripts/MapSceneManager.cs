@@ -181,6 +181,7 @@ public class MapSceneManager : MonoBehaviour
 
     public void OnNodeSelected(NodeData nodeData)
     {
+        nodeData.isVisited = true;
         if (currentNode != null)
             currentNode.isVisited = true;
 
