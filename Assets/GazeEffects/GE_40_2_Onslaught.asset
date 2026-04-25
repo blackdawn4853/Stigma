@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d12700c991ffab24ca123807f3d42baf, type: 3}
+  m_Name: GE_40_2_Onslaught
+  m_EditorClassIdentifier:
+  effectType: 5
+  displayName: "\uBAB0\uC544\uCE58\uAE30"
+  buffDescription: "\uD55C \uD134\uC5D0 \uCE74\uB4DC 3\uC7A5 \uC774\uC0C1 \uC0AC\uC6A9 \uC2DC \uCE74\uB4DC 1\uC7A5 \uB4DC\uB85C\uC6B0"
+  debuffDescription: "\uD55C \uD134\uC5D0 \uCE74\uB4DC 5\uC7A5 \uC774\uC0C1 \uC0AC\uC6A9\uD558\uBA74 \uD134 \uC885\uB8CC \uC2DC \uCCB4\uB825 -2"
+  threshold: 40
+  isTriggered: 0
+  icon: {fileID: 0}

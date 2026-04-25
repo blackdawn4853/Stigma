@@ -53,6 +53,31 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
             transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * hoverSpeed);
             transform.localPosition = Vector3.Lerp(transform.localPosition, targetPosition, Time.deltaTime * hoverSpeed);
         }
+
+        RefreshDynamicDisplay();
+    }
+
+    void RefreshDynamicDisplay()
+    {
+        if (cardData == null) return;
+
+        if (manaCostText != null)
+        {
+            int cost = GazeEffectManager.Instance != null
+                ? GazeEffectManager.Instance.GetEffectiveCost(cardData)
+                : cardData.manaCost;
+            manaCostText.text = cost.ToString();
+            manaCostText.color = cost < cardData.manaCost ? new Color(0.4f, 1f, 0.6f)
+                                : cost > cardData.manaCost ? new Color(1f, 0.4f, 0.4f)
+                                : Color.white;
+        }
+
+        if (descriptionText != null)
+        {
+            bool hide = GazeEffectManager.Instance != null
+                && GazeEffectManager.Instance.HiddenTextCard == cardData;
+            descriptionText.text = hide ? "<color=#888>???</color>" : cardData.description;
+        }
     }
 
     public void OnPointerEnter(PointerEventData eventData)

@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d12700c991ffab24ca123807f3d42baf, type: 3}
+  m_Name: GE_80_2_TornMoment
+  m_EditorClassIdentifier:
+  effectType: 13
+  displayName: "\uCC22\uAE34 \uCC30\uB098"
+  buffDescription: "\uB9E4 \uD134 \uCCAB \uCE74\uB4DC \uBE44\uC6A9 0"
+  debuffDescription: "\uB9E4 \uD134 \uB9C8\uC9C0\uB9C9 \uCE74\uB4DC \uC0AC\uC6A9 \uD6C4 \uC2DC\uC120 +3"
+  threshold: 80
+  isTriggered: 0
+  icon: {fileID: 0}

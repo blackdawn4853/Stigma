@@ -77,6 +77,9 @@ public class GameManager : MonoBehaviour
         foreach (CardData card in startingDeck)
             if (card != null) playerDeck.Add(card);
         Debug.Log($"시작 덱 초기화: {playerDeck.Count}장");
+
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.InitializeRun();
     }
 
     public void OnBossDefeated()

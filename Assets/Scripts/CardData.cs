@@ -32,7 +32,7 @@ public class CardData : ScriptableObject
     {
         Attack,    // 공격
         Skill,     // 스킬
-        Forbidden, // 금단 (크툴루)
+        Forbidden, // 금단
         Power      // 지속
     }
 

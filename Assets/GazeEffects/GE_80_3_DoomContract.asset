@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d12700c991ffab24ca123807f3d42baf, type: 3}
+  m_Name: GE_80_3_DoomContract
+  m_EditorClassIdentifier:
+  effectType: 14
+  displayName: "\uD30C\uBA78 \uACC4\uC57D"
+  buffDescription: "\uCCB4\uB825 30% \uC774\uD558 \uC801\uC5D0\uAC8C \uC8FC\uB294 \uD53C\uD574 +50%"
+  debuffDescription: "\uC804\uD22C\uAC00 6\uD134 \uC774\uC0C1 \uC9C0\uC18D\uB418\uBA74 \uD134 \uC885\uB8CC \uC2DC \uCCB4\uB825 -3"
+  threshold: 80
+  isTriggered: 0
+  icon: {fileID: 0}

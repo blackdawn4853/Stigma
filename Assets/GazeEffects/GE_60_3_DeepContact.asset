@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d12700c991ffab24ca123807f3d42baf, type: 3}
+  m_Name: GE_60_3_DeepContact
+  m_EditorClassIdentifier:
+  effectType: 10
+  displayName: "\uAE4A\uC740 \uC811\uCD09"
+  buffDescription: "\uC811\uC2E0 \uC0AC\uC6A9 \uC2DC \uCE74\uB4DC 1\uC7A5 \uB4DC\uB85C\uC6B0"
+  debuffDescription: "\uC811\uC2E0 \uC0AC\uC6A9 \uD6C4 \uD134 \uC885\uB8CC \uC2DC \uC2DC\uC120 +3"
+  threshold: 60
+  isTriggered: 0
+  icon: {fileID: 0}

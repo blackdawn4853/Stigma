@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8392710483920175001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8392710483920175002}
+  - component: {fileID: 8392710483920175003}
+  m_Layer: 0
+  m_Name: GazeEffectManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8392710483920175002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8392710483920175001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8392710483920175003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8392710483920175001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf745ad7aff952d4a9470b7bccf4cfab, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::GazeEffectManager
+  pool20:
+  - {fileID: 11400000, guid: a2effbc8f07f412ca257e6c1e80ad925, type: 2}
+  - {fileID: 11400000, guid: 4559b5e6abe647f8b4a7314241baca54, type: 2}
+  - {fileID: 11400000, guid: 193f8daa113044adbcb1e962855c36a5, type: 2}
+  - {fileID: 11400000, guid: df9763e498884d17af85be2db0e455a1, type: 2}
+  pool40:
+  - {fileID: 11400000, guid: 8abb2f899c2c471eae239ed3d5075f51, type: 2}
+  - {fileID: 11400000, guid: 9646e1569aa04a6793db72eb8cb4b3b0, type: 2}
+  - {fileID: 11400000, guid: 9dbb847746774e1eb43bfed9e1f0cd0b, type: 2}
+  - {fileID: 11400000, guid: 39e5ee92fc2145f6a24fb3b709f268d0, type: 2}
+  pool60:
+  - {fileID: 11400000, guid: 16a9e09ca2444757a4085182318918ba, type: 2}
+  - {fileID: 11400000, guid: c27f8b4904574c3a9cfce19cad659d76, type: 2}
+  - {fileID: 11400000, guid: 1ba4708cf7f549c690ce21557c8d4165, type: 2}
+  - {fileID: 11400000, guid: c8f59765cb524330a6f8992f3e3ef0b2, type: 2}
+  pool80:
+  - {fileID: 11400000, guid: 2c3d4315586e48e496d709246156aedd, type: 2}
+  - {fileID: 11400000, guid: 6d87938ea18843129ab66f053e3b020f, type: 2}
+  - {fileID: 11400000, guid: 17b24941af6c4e9fbcbd64f4a1e3480f, type: 2}
+  - {fileID: 11400000, guid: 673df6ea13a246e59a5f638eee658c4d, type: 2}
+  pool100:
+  - {fileID: 11400000, guid: 863372a6275741809f63244742afed89, type: 2}
+  - {fileID: 11400000, guid: 39c2190997d5412ea1ee5bc1e35405f7, type: 2}
+  - {fileID: 11400000, guid: 7e6baa62328244fab19702411951cb08, type: 2}
+  - {fileID: 11400000, guid: d5d552de51a948c793c81aa39d3cfa20, type: 2}
+  forbiddenCardPool:
+  - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
+  - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
+  missionPanel: {fileID: 0}
+  missionTitleText: {fileID: 0}
+  missionConditionText: {fileID: 0}
+  missionRewardText: {fileID: 0}
+  missionImage: {fileID: 0}
+  forbiddenResonanceDamage: 2
+  forbiddenResonanceExtraGaze: 1
+  sharpIntuitionExtraDraw: 1
+  sharpIntuitionPenaltyGaze: 2
+  thinBarrierShieldBonus: 2
+  thinBarrierPenaltyGaze: 2
+  weaknessTrackingDamage: 3
+  weaknessTrackingPenaltyGaze: 2
+  abyssalGrimoireCostReduction: 1
+  abyssalGrimoirePenaltyGaze: 2
+  abyssalGrimoireThreshold: 3
+  onslaughtDrawThreshold: 3
+  onslaughtPenaltyHpThreshold: 5
+  onslaughtPenaltyHp: 2
+  bloodyBreathEnergyGain: 1
+  bloodyBreathPenaltyGaze: 3
+  bloodyBreathTurnThreshold: 2
+  gapVisionCostReduction: 1
+  gapVisionPenaltyGaze: 2
+  gapVisionHandThreshold: 5
+  openingOmenExtraDraw: 1
+  gluttonyDamage: 5
+  gluttonyPenaltyGaze: 4
+  deepContactPenaltyGaze: 3
+  firstStrikeDamage: 6
+  firstStrikePenaltyGaze: 4
+  outerGodDescend80EnemyAtk: 1
+  tornMomentPenaltyGaze: 3
+  doomContractDamageMultiplier: 1.5
+  doomContractPenaltyHp: 3
+  doomContractTurnThreshold: 6
+  madnessCyclePenaltyGaze: 4
+  outerGodDescend100MaxCards: 3
+  throttlingHandAttackBonus: 4
+  openEyeDamageMultiplier: 1.5
+  openEyeNextTurnShieldMultiplier: 0.5
+  abyssalCommandSuccessEnergy: 1
+  abyssalCommandFailHp: 30
+  gazeResetOn100: 30

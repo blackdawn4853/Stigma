@@ -92,6 +92,9 @@ public class BattleManager : MonoBehaviour
         regenTurnsRemaining = 0;
         gazeChangeLog.Clear();
 
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.InitializeBattle();
+
         deck.Clear();
         hand.Clear();
         discardPile.Clear();
@@ -208,14 +211,25 @@ public class BattleManager : MonoBehaviour
                card.effectType == CardData.CardEffectType.DrawAndReduceMana;
     }
 
+    int GetCardCost(CardData card)
+    {
+        return GazeEffectManager.Instance != null
+            ? GazeEffectManager.Instance.GetEffectiveCost(card)
+            : card.manaCost;
+    }
+
     public bool PlayCardOnMonster(CardData card)
     {
         if (!introComplete) return false;
         if (!hand.Contains(card)) return false;
-        if (currentMana < card.manaCost) { Debug.Log("마나가 부족해!"); return false; }
+        int cost = GetCardCost(card);
+        if (currentMana < cost) { Debug.Log("마나가 부족해!"); return false; }
 
-        currentMana -= card.manaCost;
+        currentMana -= cost;
         hand.Remove(card);
+
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnCardPlayed(card, true);
 
         if (IsDrawCard(card))
         {
@@ -235,10 +249,14 @@ public class BattleManager : MonoBehaviour
     {
         if (!introComplete) return false;
         if (!hand.Contains(card)) return false;
-        if (currentMana < card.manaCost) { Debug.Log("마나가 부족해!"); return false; }
+        int cost = GetCardCost(card);
+        if (currentMana < cost) { Debug.Log("마나가 부족해!"); return false; }
 
-        currentMana -= card.manaCost;
+        currentMana -= cost;
         hand.Remove(card);
+
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnCardPlayed(card, false);
 
         if (IsDrawCard(card))
         {
@@ -267,14 +285,14 @@ public class BattleManager : MonoBehaviour
         switch (card.effectType)
         {
             case CardData.CardEffectType.Damage:
-                damage = CalculateDamage(card.value);
-                actualDamage = ApplyDamageToMonster(damage);
+                damage = CalculateDamage(card.value, card);
+                actualDamage = ApplyDamageToMonster(damage, card);
                 Debug.Log($"{card.cardName} — {actualDamage} 데미지!");
                 break;
 
             case CardData.CardEffectType.Shield:
-                playerDefense += card.value;
-                Debug.Log($"{card.cardName} — 방어도 {card.value}!");
+                playerDefense += GetCardShield(card, card.value);
+                Debug.Log($"{card.cardName} — 방어도 적용");
                 break;
 
             case CardData.CardEffectType.Draw:
@@ -285,33 +303,35 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.DamageAndShield:
-                damage = CalculateDamage(card.value);
-                actualDamage = ApplyDamageToMonster(damage);
-                playerDefense += card.value2;
-                Debug.Log($"{card.cardName} — {actualDamage} 데미지 + 방어도 {card.value2}!");
+                damage = CalculateDamage(card.value, card);
+                actualDamage = ApplyDamageToMonster(damage, card);
+                playerDefense += GetCardShield(card, card.value2);
+                Debug.Log($"{card.cardName} — {actualDamage} 데미지 + 방어도");
                 break;
 
             case CardData.CardEffectType.MultiHit:
                 int totalMulti = 0;
                 for (int i = 0; i < card.value2; i++)
                 {
-                    damage = CalculateDamage(card.value);
-                    totalMulti += ApplyDamageToMonster(damage);
+                    damage = CalculateDamage(card.value, card);
+                    totalMulti += ApplyDamageToMonster(damage, card);
                 }
                 Debug.Log($"{card.cardName} — {card.value2}회 공격, 총 {totalMulti} 데미지!");
                 break;
 
             case CardData.CardEffectType.PenetratingDamage:
-                damage = CalculateDamage(card.value);
+                damage = CalculateDamage(card.value, card);
                 monsterCurrentHp -= damage;
                 if (monsterHitEffect != null) monsterHitEffect.PlayHit();
+                if (GazeEffectManager.Instance != null)
+                    GazeEffectManager.Instance.OnDamageDealt(card, damage);
                 Debug.Log($"{card.cardName} — 관통! {damage} 데미지!");
                 break;
 
             case CardData.CardEffectType.RandomDamage:
                 int randDmg = Random.Range(card.value, card.value2 + 1);
-                damage = CalculateDamage(randDmg);
-                actualDamage = ApplyDamageToMonster(damage);
+                damage = CalculateDamage(randDmg, card);
+                actualDamage = ApplyDamageToMonster(damage, card);
                 Debug.Log($"{card.cardName} — 랜덤 {actualDamage} 데미지!");
                 break;
 
@@ -328,9 +348,9 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.ShieldAndDraw:
-                playerDefense += card.value;
+                playerDefense += GetCardShield(card, card.value);
                 DrawCards(card.value2);
-                Debug.Log($"{card.cardName} — 방어도 {card.value} + {card.value2}장 드로우!");
+                Debug.Log($"{card.cardName} — 방어도 + {card.value2}장 드로우!");
                 break;
 
             case CardData.CardEffectType.Heal:
@@ -344,8 +364,8 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.AllDamage:
-                damage = CalculateDamage(card.value);
-                actualDamage = ApplyDamageToMonster(damage);
+                damage = CalculateDamage(card.value, card);
+                actualDamage = ApplyDamageToMonster(damage, card);
                 Debug.Log($"{card.cardName} — 전체 {actualDamage} 데미지!");
                 break;
 
@@ -353,15 +373,15 @@ public class BattleManager : MonoBehaviour
                 int totalAll = 0;
                 for (int i = 0; i < card.value2; i++)
                 {
-                    damage = CalculateDamage(card.value);
-                    totalAll += ApplyDamageToMonster(damage);
+                    damage = CalculateDamage(card.value, card);
+                    totalAll += ApplyDamageToMonster(damage, card);
                 }
                 Debug.Log($"{card.cardName} — 전체 {card.value2}회, 총 {totalAll} 데미지!");
                 break;
 
             case CardData.CardEffectType.DamageSelfDamage:
-                damage = CalculateDamage(card.value);
-                actualDamage = ApplyDamageToMonster(damage);
+                damage = CalculateDamage(card.value, card);
+                actualDamage = ApplyDamageToMonster(damage, card);
                 playerCurrentHp -= card.value2;
                 if (playerHitEffect != null) playerHitEffect.PlayHit();
                 regenTurnsRemaining = card.value3;
@@ -370,9 +390,9 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.ImmunityShield:
-                playerDefense += card.value;
+                playerDefense += GetCardShield(card, card.value);
                 playerDebuffTurns = 0;
-                Debug.Log($"{card.cardName} — 방어도 {card.value} + 디버프 면역!");
+                Debug.Log($"{card.cardName} — 방어도 + 디버프 면역!");
                 break;
 
             case CardData.CardEffectType.RandomCardUse:
@@ -406,9 +426,14 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    int CalculateDamage(int baseDamage)
+    int CalculateDamage(int baseDamage, CardData card = null)
     {
         int damage = baseDamage + playerStrength;
+        if (card != null && GazeEffectManager.Instance != null)
+        {
+            damage += GazeEffectManager.Instance.GetFlatDamageBonus(card);
+            damage = Mathf.RoundToInt(damage * GazeEffectManager.Instance.GetDamageMultiplier(card));
+        }
         if (playerDebuffTurns > 0)
             damage = Mathf.RoundToInt(damage * 0.75f);
         if (monsterDebuffTurns > 0)
@@ -416,14 +441,37 @@ public class BattleManager : MonoBehaviour
         return damage;
     }
 
-    int ApplyDamageToMonster(int damage)
+    int ApplyDamageToMonster(int damage, CardData card = null)
     {
-        int actualDamage = Mathf.Max(0, damage - monsterDefense);
-        monsterDefense = Mathf.Max(0, monsterDefense - damage);
+        bool ignoreDefense = card != null && GazeEffectManager.Instance != null
+            && GazeEffectManager.Instance.IgnoresMonsterDefense(card);
+        int actualDamage;
+        if (ignoreDefense)
+        {
+            actualDamage = damage;
+        }
+        else
+        {
+            actualDamage = Mathf.Max(0, damage - monsterDefense);
+            monsterDefense = Mathf.Max(0, monsterDefense - damage);
+        }
         monsterCurrentHp -= actualDamage;
         if (actualDamage > 0 && monsterHitEffect != null)
             monsterHitEffect.PlayHit();
+        if (card != null && GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnDamageDealt(card, actualDamage);
         return actualDamage;
+    }
+
+    int GetCardShield(CardData card, int baseShield)
+    {
+        int shield = baseShield;
+        if (GazeEffectManager.Instance != null)
+        {
+            shield += GazeEffectManager.Instance.GetFlatShieldBonus(card);
+            shield = Mathf.RoundToInt(shield * GazeEffectManager.Instance.GetShieldMultiplier());
+        }
+        return Mathf.Max(0, shield);
     }
 
     public void EndTurn()
@@ -446,11 +494,21 @@ public class BattleManager : MonoBehaviour
             CheckPlayerDeath();
         }
 
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnTurnEnd();
+
         if (gazeLevel >= 100)
         {
-            playerCurrentHp -= 20;
-            monsterStrength += 3;
-            gazeLevel = gazeResetValue;
+            if (GazeEffectManager.Instance != null)
+            {
+                GazeEffectManager.Instance.TriggerGaze100();
+            }
+            else
+            {
+                playerCurrentHp -= 20;
+                monsterStrength += 3;
+                gazeLevel = gazeResetValue;
+            }
             if (playerHitEffect != null) playerHitEffect.PlayHit();
             CheckPlayerDeath();
         }
@@ -480,6 +538,9 @@ public class BattleManager : MonoBehaviour
         hand.Clear();
         DrawCards(5);
 
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnTurnStart();
+
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
         if (PlayerHand.Instance != null) PlayerHand.Instance.OnTurnEnd();
     }
@@ -493,8 +554,8 @@ public class BattleManager : MonoBehaviour
             case MonsterData.ActionType.Attack:
                 int damage = monsterNextAction.value + monsterStrength;
 
-                if (gazeLevel >= 25 && gazeLevel < 50) damage += 1;
-                else if (gazeLevel >= 50) damage += 2;
+                if (GazeEffectManager.Instance != null)
+                    damage += GazeEffectManager.Instance.GetMonsterBonusAttack();
 
                 int actualDamage = Mathf.Max(0, damage - playerDefense);
                 playerDefense = Mathf.Max(0, playerDefense - damage);
@@ -540,6 +601,9 @@ public class BattleManager : MonoBehaviour
             gazeChangeLog.Add($"{reason} {sign}{actual}");
         }
 
+        if (GazeEffectManager.Instance != null)
+            GazeEffectManager.Instance.OnGazeChanged(actual);
+
         if (BattleUI.Instance != null)
         {
             BattleUI.Instance.FlashGazeBar(amount > 0);
@@ -552,6 +616,8 @@ public class BattleManager : MonoBehaviour
         if (monsterCurrentHp <= 0)
         {
             monsterCurrentHp = 0;
+            if (GazeEffectManager.Instance != null)
+                GazeEffectManager.Instance.OnMonsterKilled();
             if (GameManager.Instance != null)
                 GameManager.Instance.playerCurrentHp = playerCurrentHp;
             UnityEngine.SceneManagement.SceneManager.LoadScene("RewardScene");
@@ -562,6 +628,11 @@ public class BattleManager : MonoBehaviour
     {
         if (playerCurrentHp <= 0)
         {
+            if (GazeEffectManager.Instance != null && GazeEffectManager.Instance.IsDeathProtected)
+            {
+                playerCurrentHp = 1;
+                return;
+            }
             playerCurrentHp = 0;
             if (GameManager.Instance != null)
                 GameManager.Instance.GameOver();
