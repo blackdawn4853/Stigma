@@ -9,7 +9,8 @@ public class NodeData
         Combat,     // 전투
         Shop,       // 상점
         RandomEvent, // 랜덤 이벤트
-        Boss        // 보스
+        Boss,       // 보스
+        Brand       // 낙인 (카드 제거 또는 시선 효과 교체)
     }
 
     public NodeType nodeType;

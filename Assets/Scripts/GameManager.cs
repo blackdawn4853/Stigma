@@ -129,6 +129,11 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene("ShopScene");
     }
 
+    public void LoadBrand()
+    {
+        SceneManager.LoadScene("BrandNodeScene");
+    }
+
     public void ReturnToMap()
     {
         returningFromBattle = true;

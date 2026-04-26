@@ -93,6 +93,8 @@ public class GazeEffectManager : MonoBehaviour
     private bool deathProtectionActive;
     private bool openEyeMarkActive;
     private bool nextTurnShieldReduction;
+    private bool openEyePending;            // N+1 턴에 활성화 대기
+    private bool abyssalCommandPending;     // N+1 턴에 미션 시작 대기
     private bool nextTurnNonForbiddenCostIncrease;
     private bool currentTurnNonForbiddenCostIncrease;
     private HashSet<CardData> outerGodFreeCards = new HashSet<CardData>();
@@ -184,6 +186,8 @@ public class GazeEffectManager : MonoBehaviour
         deathProtectionActive = false;
         openEyeMarkActive = false;
         nextTurnShieldReduction = false;
+        openEyePending = false;
+        abyssalCommandPending = false;
         nextTurnNonForbiddenCostIncrease = false;
         currentTurnNonForbiddenCostIncrease = false;
         outerGodFreeCards.Clear();
@@ -225,6 +229,26 @@ public class GazeEffectManager : MonoBehaviour
         // 100-1: 다음 턴 비크툴루 비용 +1 (이번 턴에 적용)
         currentTurnNonForbiddenCostIncrease = nextTurnNonForbiddenCostIncrease;
         nextTurnNonForbiddenCostIncrease = false;
+
+        // 100-3 개안: 트리거 다음 턴(=현재 턴)에 표식+방어 감소 활성화
+        if (openEyePending)
+        {
+            openEyePending = false;
+            openEyeMarkActive = true;
+            nextTurnShieldReduction = true;
+        }
+
+        // 100-4 심연의 명령: 트리거 다음 턴(=현재 턴)에 미션 시작
+        if (abyssalCommandPending)
+        {
+            abyssalCommandPending = false;
+            currentMission = (MissionType)Random.Range(0, 4);
+            missionActive = true;
+            missionDamageDealt = 0;
+            missionForbiddenUsed = 0;
+            if (missionPanel != null) missionPanel.SetActive(true);
+            RefreshMissionUI();
+        }
 
         // 60-1 개안 전조: 매 턴 추가 드로우
         if (IsActive(GazeEffectType.OpeningOmen))
@@ -366,7 +390,7 @@ public class GazeEffectManager : MonoBehaviour
 
         // 60-3 깊은 접촉 버프
         if (IsActive(GazeEffectType.DeepContact) && BattleManager.Instance.gazeLevel >= 60
-            && card.cardName == "접신")
+            && card.cardName == "응시")
         {
             usedJeopshinThisTurn = true;
             BattleManager.Instance.DrawCards(1);
@@ -646,20 +670,14 @@ public class GazeEffectManager : MonoBehaviour
 
     void TriggerOpenEye()
     {
-        openEyeMarkActive = true;
-        nextTurnShieldReduction = true;
-        Debug.Log("[Gaze100] 개안: 표식 부여, 다음 턴 방어 -50%");
+        openEyePending = true;
+        Debug.Log("[Gaze100] 개안: 다음 턴부터 표식 + 방어 -50% 적용 예정");
     }
 
     void TriggerAbyssalCommand()
     {
-        currentMission = (MissionType)Random.Range(0, 4);
-        missionActive = true;
-        missionDamageDealt = 0;
-        missionForbiddenUsed = 0;
-        if (missionPanel != null) missionPanel.SetActive(true);
-        RefreshMissionUI();
-        Debug.Log($"[Gaze100] 심연의 명령: {currentMission}");
+        abyssalCommandPending = true;
+        Debug.Log("[Gaze100] 심연의 명령: 다음 턴부터 미션 시작 예정");
     }
 
     void RefreshMissionUI()

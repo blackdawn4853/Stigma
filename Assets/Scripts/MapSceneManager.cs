@@ -43,13 +43,6 @@ public class MapSceneManager : MonoBehaviour
         else
             currentLayers = MapGenerator.Instance.GenerateMap();
 
-        // 모든 노드 전투로 강제 (보스/시작 제외)
-        foreach (var layer in currentLayers)
-            foreach (var node in layer)
-                if (node.nodeType != NodeData.NodeType.Boss &&
-                    node.nodeType != NodeData.NodeType.Start)
-                    node.nodeType = NodeData.NodeType.Combat;
-
         float layerHeight = MapGenerator.Instance.layerHeight;
         int maxLayer = currentLayers.Count - 1;
         float totalHeight = bottomPadding + (maxLayer * layerHeight) + topPadding;
@@ -215,6 +208,12 @@ public class MapSceneManager : MonoBehaviour
                 break;
             case NodeData.NodeType.RandomEvent:
                 Debug.Log("랜덤 이벤트!");
+                break;
+            case NodeData.NodeType.Brand:
+                if (GameManager.Instance != null)
+                    GameManager.Instance.LoadBrand();
+                else
+                    SceneManager.LoadScene("BrandNodeScene");
                 break;
             case NodeData.NodeType.Boss:
                 if (GameManager.Instance != null)

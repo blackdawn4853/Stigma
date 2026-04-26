@@ -15,9 +15,10 @@ public class MapGenerator : MonoBehaviour
     public int maxNodesPerLayer = 5;
 
     [Header("노드 타입 확률 (%)")]
-    public int combatChance = 60;
+    public int combatChance = 55;
     public int shopChance = 20;
     public int randomEventChance = 20;
+    public int brandChance = 5;
 
     [Header("화면 설정")]
     public float layerHeight = 150f;
@@ -176,7 +177,8 @@ public class MapGenerator : MonoBehaviour
         int roll = Random.Range(0, 100);
         if (roll < combatChance) return NodeData.NodeType.Combat;
         if (roll < combatChance + shopChance) return NodeData.NodeType.Shop;
-        return NodeData.NodeType.RandomEvent;
+        if (roll < combatChance + shopChance + randomEventChance) return NodeData.NodeType.RandomEvent;
+        return NodeData.NodeType.Brand;
     }
 
     void CalculatePositions()

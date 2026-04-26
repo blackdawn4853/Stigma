@@ -795,8 +795,9 @@ MonoBehaviour:
   maxNextNodes: 2
   maxNodesPerLayer: 5
   combatChance: 60
-  shopChance: 10
-  randomEventChance: 30
+  shopChance: 0
+  randomEventChance: 0
+  brandChance: 40
   layerHeight: 200
   nodeSpacing: 150
   randomOffsetX: 70
