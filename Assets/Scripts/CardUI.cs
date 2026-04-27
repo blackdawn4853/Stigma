@@ -173,7 +173,16 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
             if (hit != null && hit.CompareTag("Monster"))
             {
-                success = BattleManager.Instance.PlayCardOnMonster(cardData);
+                Monster targetMonster = hit.GetComponent<Monster>();
+                if (targetMonster == null) targetMonster = hit.GetComponentInParent<Monster>();
+                if (targetMonster != null && targetMonster.IsAlive)
+                {
+                    success = BattleManager.Instance.PlayCardOnMonster(cardData, targetMonster);
+                }
+                else
+                {
+                    Debug.Log("이미 쓰러진 몬스터야!");
+                }
             }
             else
             {

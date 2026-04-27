@@ -8,10 +8,6 @@ public class BattleUI : MonoBehaviour
 {
     public static BattleUI Instance { get; private set; }
 
-    [Header("몬스터 UI")]
-    public Slider monsterHPBar;
-    public TextMeshProUGUI monsterHPText;
-
     [Header("플레이어 UI")]
     public Slider playerHPBar;
     public TextMeshProUGUI playerHPText;
@@ -21,7 +17,6 @@ public class BattleUI : MonoBehaviour
 
     [Header("방어도 UI")]
     public TextMeshProUGUI playerDefenseText;
-    public TextMeshProUGUI monsterDefenseText;
 
     [Header("시선 게이지 UI")]
     public Slider gazeBar;
@@ -68,11 +63,6 @@ public class BattleUI : MonoBehaviour
         BattleManager bm = BattleManager.Instance;
         if (bm == null) return;
 
-        if (monsterHPBar != null)
-            monsterHPBar.value = (float)bm.monsterCurrentHp / bm.monsterData.maxHp;
-        if (monsterHPText != null)
-            monsterHPText.text = $"{bm.monsterCurrentHp}/{bm.monsterData.maxHp}";
-
         if (playerHPBar != null)
             playerHPBar.value = (float)bm.playerCurrentHp / bm.playerMaxHp;
         if (playerHPText != null)
@@ -83,8 +73,6 @@ public class BattleUI : MonoBehaviour
 
         if (playerDefenseText != null)
             playerDefenseText.text = bm.playerDefense > 0 ? $"방어 {bm.playerDefense}" : "";
-        if (monsterDefenseText != null)
-            monsterDefenseText.text = bm.monsterDefense > 0 ? $"방어 {bm.monsterDefense}" : "";
 
         if (gazeBar != null)
             gazeBar.value = (float)bm.gazeLevel / 100f;
@@ -97,12 +85,16 @@ public class BattleUI : MonoBehaviour
             discardCountText.text = $"버림: {bm.discardPile.Count}";
     }
 
+    // 레거시 인텐트 UI 갱신 - 다중 몬스터에서는 MonsterRuntimeUI 가 자동 갱신.
     public void UpdateMonsterIntent()
     {
-        if (MonsterIntent.Instance != null)
+        BattleManager bm = BattleManager.Instance;
+        if (bm == null) return;
+        for (int i = 0; i < bm.monsters.Count; i++)
         {
-            MonsterIntent.Instance.UpdateIntent(BattleManager.Instance.monsterNextAction);
-            MonsterIntent.Instance.UpdateActiveTurns();
+            var m = bm.monsters[i];
+            if (m == null || m.runtimeUI == null) continue;
+            m.runtimeUI.UpdateIntent();
         }
     }
 

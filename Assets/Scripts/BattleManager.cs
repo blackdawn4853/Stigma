@@ -6,14 +6,14 @@ public class BattleManager : MonoBehaviour
 {
     public static BattleManager Instance { get; private set; }
 
-    [Header("몬스터 설정")]
-    public MonsterData monsterData;
-    public int monsterCurrentHp;
-    public MonsterData.MonsterAction monsterNextAction;
-    public int monsterDefense = 0;
-    public int monsterStrength = 0;
-    public int monsterStrengthTurns = 0;
-    public int monsterDebuffTurns = 0;
+    [Header("몬스터 (씬에 사전 배치된 Monster 컴포넌트들 - 인카운터 미설정 시 폴백)")]
+    public List<Monster> monsters = new List<Monster>();
+    public bool autoFindMonsters = true;
+
+    [Header("인카운터 동적 스폰 (NextEncounter 가 있으면 씬 배치 무시)")]
+    public GameObject monsterPrefab;
+    public Transform encounterAnchor; // 비워두면 (0, -1, 0) 기준
+    public Vector3 defaultAnchorPosition = new Vector3(5f, -1f, 0f);
 
     [Header("플레이어 설정")]
     public int playerCurrentHp;
@@ -41,9 +41,7 @@ public class BattleManager : MonoBehaviour
 
     [Header("인트로 연출")]
     public GameObject playerObject;
-    public GameObject monsterObject;
     public float introSpeed = 3f;
-    public HitEffect monsterHitEffect;
     public HitEffect playerHitEffect;
 
     private bool introComplete = false;
@@ -52,10 +50,92 @@ public class BattleManager : MonoBehaviour
     private int regenHealAmount = 5;
     private int regenTurnsRemaining = 0;
 
+    // ─── 다중 몬스터 호환 헬퍼 ─────────────────────────────────────
+    public Monster PrimaryMonster => GetFirstAlive() ?? (monsters.Count > 0 ? monsters[0] : null);
+    public bool AnyMonsterAlive
+    {
+        get
+        {
+            for (int i = 0; i < monsters.Count; i++)
+                if (monsters[i] != null && monsters[i].IsAlive) return true;
+            return false;
+        }
+    }
+
+    public Monster GetFirstAlive()
+    {
+        for (int i = 0; i < monsters.Count; i++)
+            if (monsters[i] != null && monsters[i].IsAlive) return monsters[i];
+        return null;
+    }
+
+    public List<Monster> GetAliveMonsters()
+    {
+        var list = new List<Monster>();
+        for (int i = 0; i < monsters.Count; i++)
+            if (monsters[i] != null && monsters[i].IsAlive) list.Add(monsters[i]);
+        return list;
+    }
+
     void Awake()
     {
         if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        else { Destroy(gameObject); return; }
+
+        // 인카운터가 설정돼있으면 씬 배치 몬스터를 모두 제거하고 인카운터로 스폰
+        if (EncounterDatabase.NextEncounter != null)
+        {
+            DespawnSceneMonsters();
+            SpawnEncounter(EncounterDatabase.NextEncounter);
+            EncounterDatabase.NextEncounter = null; // 1회용
+        }
+        else if (autoFindMonsters && monsters.Count == 0)
+        {
+#if UNITY_2023_1_OR_NEWER
+            var found = FindObjectsByType<Monster>(FindObjectsSortMode.InstanceID);
+#else
+            var found = FindObjectsOfType<Monster>();
+#endif
+            for (int i = 0; i < found.Length; i++) monsters.Add(found[i]);
+        }
+    }
+
+    void DespawnSceneMonsters()
+    {
+#if UNITY_2023_1_OR_NEWER
+        var found = FindObjectsByType<Monster>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        var found = FindObjectsOfType<Monster>(true);
+#endif
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i] != null) Destroy(found[i].gameObject);
+        }
+        monsters.Clear();
+    }
+
+    void SpawnEncounter(EncounterData encounter)
+    {
+        if (encounter == null || encounter.entries == null) return;
+        if (monsterPrefab == null)
+        {
+            Debug.LogError("[BattleManager] monsterPrefab 미할당 — 인카운터 스폰 불가");
+            return;
+        }
+        Vector3 anchor = encounterAnchor != null ? encounterAnchor.position : defaultAnchorPosition;
+        for (int i = 0; i < encounter.entries.Length; i++)
+        {
+            var entry = encounter.entries[i];
+            if (entry == null || entry.data == null) continue;
+            Vector3 pos = anchor + new Vector3(entry.positionOffset.x, entry.positionOffset.y, 0f);
+            GameObject go = Instantiate(monsterPrefab, pos, Quaternion.identity);
+            go.name = entry.data.monsterName;
+            var mono = go.GetComponent<Monster>();
+            if (mono == null) mono = go.AddComponent<Monster>();
+            mono.data = entry.data;
+            monsters.Add(mono);
+        }
+        Debug.Log($"[BattleManager] 인카운터 스폰: {encounter.encounterName} ({monsters.Count}마리)");
     }
 
     void Start()
@@ -75,11 +155,6 @@ public class BattleManager : MonoBehaviour
             playerCurrentHp = playerMaxHp;
         }
 
-        monsterCurrentHp = monsterData.maxHp;
-        monsterDefense = 0;
-        monsterStrength = 0;
-        monsterStrengthTurns = 0;
-        monsterDebuffTurns = 0;
         playerDefense = 0;
         playerStrength = 0;
         playerStrengthTurns = 0;
@@ -91,6 +166,15 @@ public class BattleManager : MonoBehaviour
         nextTurnManaReduction = 0;
         regenTurnsRemaining = 0;
         gazeChangeLog.Clear();
+
+        // 몬스터 초기화 (사망 상태 GameObject 도 활성화 시 부활)
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null) continue;
+            if (!monsters[i].gameObject.activeSelf) monsters[i].gameObject.SetActive(true);
+            monsters[i].CacheFinalPosition();
+            monsters[i].InitializeForBattle();
+        }
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.InitializeBattle();
@@ -113,21 +197,18 @@ public class BattleManager : MonoBehaviour
         ShuffleDeck();
         DrawCards(5);
 
-        monsterNextAction = monsterData.GetNextAction();
-
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
         if (PlayerHand.Instance != null) PlayerHand.Instance.RefreshHand();
 
-        if (playerObject != null && monsterObject != null)
+        if (playerObject != null && monsters.Count > 0)
             StartCoroutine(IntroCoroutine());
         else
         {
             introComplete = true;
-            if (MonsterIntent.Instance != null)
-                MonsterIntent.Instance.UpdateIntent(monsterNextAction);
+            RefreshAllIntents();
         }
 
-        Debug.Log("전투 시작!");
+        Debug.Log($"전투 시작! 몬스터 {monsters.Count}마리");
     }
 
     IEnumerator IntroCoroutine()
@@ -138,34 +219,61 @@ public class BattleManager : MonoBehaviour
         if (PlayerHand.Instance != null) PlayerHand.Instance.gameObject.SetActive(false);
 
         Vector3 playerFinalPos = playerObject.transform.position;
-        Vector3 monsterFinalPos = monsterObject.transform.position;
+        Vector3 playerStartPos = playerFinalPos + new Vector3(-15f, 0, 0);
+        playerObject.transform.position = playerStartPos;
 
-        playerObject.transform.position = playerFinalPos + new Vector3(-15f, 0, 0);
-        monsterObject.transform.position = monsterFinalPos + new Vector3(15f, 0, 0);
+        // 각 몬스터 시작 위치 저장
+        var startPositions = new Vector3[monsters.Count];
+        var finalPositions = new Vector3[monsters.Count];
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null) continue;
+            finalPositions[i] = monsters[i].FinalPosition;
+            float offset = Mathf.Max(0.1f, monsters[i].introEnterOffsetX);
+            startPositions[i] = finalPositions[i] + new Vector3(offset, 0, 0);
+            monsters[i].transform.position = startPositions[i];
+        }
 
         float t = 0f;
         while (t < 1f)
         {
             t += Time.deltaTime * introSpeed;
             float smooth = Mathf.SmoothStep(0, 1, Mathf.Clamp01(t));
-            playerObject.transform.position = Vector3.Lerp(playerFinalPos + new Vector3(-15f, 0, 0), playerFinalPos, smooth);
-            monsterObject.transform.position = Vector3.Lerp(monsterFinalPos + new Vector3(15f, 0, 0), monsterFinalPos, smooth);
+            playerObject.transform.position = Vector3.Lerp(playerStartPos, playerFinalPos, smooth);
+            for (int i = 0; i < monsters.Count; i++)
+            {
+                if (monsters[i] == null) continue;
+                monsters[i].transform.position = Vector3.Lerp(startPositions[i], finalPositions[i], smooth);
+            }
             yield return null;
         }
 
         playerObject.transform.position = playerFinalPos;
-        monsterObject.transform.position = monsterFinalPos;
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null) continue;
+            monsters[i].transform.position = finalPositions[i];
+        }
 
         yield return new WaitForSeconds(0.3f);
 
         if (BattleUI.Instance != null) BattleUI.Instance.gameObject.SetActive(true);
         if (PlayerHand.Instance != null) PlayerHand.Instance.gameObject.SetActive(true);
 
-        if (MonsterIntent.Instance != null)
-            MonsterIntent.Instance.UpdateIntent(monsterNextAction);
+        RefreshAllIntents();
 
         introComplete = true;
         Debug.Log("인트로 완료!");
+    }
+
+    void RefreshAllIntents()
+    {
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null || !monsters[i].IsAlive) continue;
+            monsters[i].EnsureRuntimeUI();
+            if (monsters[i].runtimeUI != null) monsters[i].runtimeUI.UpdateIntent();
+        }
     }
 
     void ShuffleDeck()
@@ -218,10 +326,15 @@ public class BattleManager : MonoBehaviour
             : card.manaCost;
     }
 
-    public bool PlayCardOnMonster(CardData card)
+    public bool PlayCardOnMonster(CardData card, Monster target)
     {
         if (!introComplete) return false;
         if (!hand.Contains(card)) return false;
+        if (target == null || !target.IsAlive)
+        {
+            Debug.Log("유효한 몬스터 타겟이 아니야!");
+            return false;
+        }
         int cost = GetCardCost(card);
         if (currentMana < cost) { Debug.Log("마나가 부족해!"); return false; }
 
@@ -233,13 +346,13 @@ public class BattleManager : MonoBehaviour
 
         if (IsDrawCard(card))
         {
-            ApplyCardEffect(card, true);
+            ApplyCardEffect(card, target);
             discardPile.Add(card);
         }
         else
         {
             discardPile.Add(card);
-            ApplyCardEffect(card, true);
+            ApplyCardEffect(card, target);
         }
 
         return true;
@@ -260,19 +373,19 @@ public class BattleManager : MonoBehaviour
 
         if (IsDrawCard(card))
         {
-            ApplyCardEffect(card, false);
+            ApplyCardEffect(card, null);
             discardPile.Add(card);
         }
         else
         {
             discardPile.Add(card);
-            ApplyCardEffect(card, false);
+            ApplyCardEffect(card, null);
         }
 
         return true;
     }
 
-    void ApplyCardEffect(CardData card, bool targetIsMonster)
+    void ApplyCardEffect(CardData card, Monster target)
     {
         if (card.gazeChange != 0)
             ChangeGaze(card.gazeChange, card.cardName);
@@ -285,9 +398,9 @@ public class BattleManager : MonoBehaviour
         switch (card.effectType)
         {
             case CardData.CardEffectType.Damage:
-                damage = CalculateDamage(card.value, card);
-                actualDamage = ApplyDamageToMonster(damage, card);
-                Debug.Log($"{card.cardName} — {actualDamage} 데미지!");
+                damage = CalculateDamage(card.value, card, target);
+                actualDamage = ApplyDamageToMonster(damage, card, target);
+                Debug.Log($"{card.cardName} → {NameOf(target)} {actualDamage} 데미지!");
                 break;
 
             case CardData.CardEffectType.Shield:
@@ -303,36 +416,36 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.DamageAndShield:
-                damage = CalculateDamage(card.value, card);
-                actualDamage = ApplyDamageToMonster(damage, card);
+                damage = CalculateDamage(card.value, card, target);
+                actualDamage = ApplyDamageToMonster(damage, card, target);
                 playerDefense += GetCardShield(card, card.value2);
-                Debug.Log($"{card.cardName} — {actualDamage} 데미지 + 방어도");
+                Debug.Log($"{card.cardName} → {NameOf(target)} {actualDamage} 데미지 + 방어도");
                 break;
 
             case CardData.CardEffectType.MultiHit:
                 int totalMulti = 0;
                 for (int i = 0; i < card.value2; i++)
                 {
-                    damage = CalculateDamage(card.value, card);
-                    totalMulti += ApplyDamageToMonster(damage, card);
+                    if (target == null || !target.IsAlive) break;
+                    damage = CalculateDamage(card.value, card, target);
+                    totalMulti += ApplyDamageToMonster(damage, card, target);
                 }
-                Debug.Log($"{card.cardName} — {card.value2}회 공격, 총 {totalMulti} 데미지!");
+                Debug.Log($"{card.cardName} → {NameOf(target)} {card.value2}회, 총 {totalMulti} 데미지!");
                 break;
 
             case CardData.CardEffectType.PenetratingDamage:
-                damage = CalculateDamage(card.value, card);
-                monsterCurrentHp -= damage;
-                if (monsterHitEffect != null) monsterHitEffect.PlayHit();
-                if (GazeEffectManager.Instance != null)
+                damage = CalculateDamage(card.value, card, target);
+                if (target != null) target.DirectDamage(damage);
+                if (target != null && card != null && GazeEffectManager.Instance != null)
                     GazeEffectManager.Instance.OnDamageDealt(card, damage);
-                Debug.Log($"{card.cardName} — 관통! {damage} 데미지!");
+                Debug.Log($"{card.cardName} → {NameOf(target)} 관통! {damage} 데미지!");
                 break;
 
             case CardData.CardEffectType.RandomDamage:
                 int randDmg = Random.Range(card.value, card.value2 + 1);
-                damage = CalculateDamage(randDmg, card);
-                actualDamage = ApplyDamageToMonster(damage, card);
-                Debug.Log($"{card.cardName} — 랜덤 {actualDamage} 데미지!");
+                damage = CalculateDamage(randDmg, card, target);
+                actualDamage = ApplyDamageToMonster(damage, card, target);
+                Debug.Log($"{card.cardName} → {NameOf(target)} 랜덤 {actualDamage} 데미지!");
                 break;
 
             case CardData.CardEffectType.StrengthBuff:
@@ -364,28 +477,42 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.AllDamage:
-                damage = CalculateDamage(card.value, card);
-                actualDamage = ApplyDamageToMonster(damage, card);
-                Debug.Log($"{card.cardName} — 전체 {actualDamage} 데미지!");
+            {
+                int totalAll = 0;
+                var alive = GetAliveMonsters();
+                foreach (var m in alive)
+                {
+                    damage = CalculateDamage(card.value, card, m);
+                    totalAll += ApplyDamageToMonster(damage, card, m);
+                }
+                Debug.Log($"{card.cardName} — 전체 {alive.Count}타겟, 총 {totalAll} 데미지!");
                 break;
+            }
 
             case CardData.CardEffectType.AllMultiHit:
-                int totalAll = 0;
+            {
+                int totalMHit = 0;
+                var alive = GetAliveMonsters();
                 for (int i = 0; i < card.value2; i++)
                 {
-                    damage = CalculateDamage(card.value, card);
-                    totalAll += ApplyDamageToMonster(damage, card);
+                    foreach (var m in alive)
+                    {
+                        if (!m.IsAlive) continue;
+                        damage = CalculateDamage(card.value, card, m);
+                        totalMHit += ApplyDamageToMonster(damage, card, m);
+                    }
                 }
-                Debug.Log($"{card.cardName} — 전체 {card.value2}회, 총 {totalAll} 데미지!");
+                Debug.Log($"{card.cardName} — 전체 {card.value2}회, 총 {totalMHit} 데미지!");
                 break;
+            }
 
             case CardData.CardEffectType.DamageSelfDamage:
-                damage = CalculateDamage(card.value, card);
-                actualDamage = ApplyDamageToMonster(damage, card);
+                damage = CalculateDamage(card.value, card, target);
+                actualDamage = ApplyDamageToMonster(damage, card, target);
                 playerCurrentHp -= card.value2;
                 if (playerHitEffect != null) playerHitEffect.PlayHit();
                 regenTurnsRemaining = card.value3;
-                Debug.Log($"{card.cardName} — {actualDamage} 데미지, 자해 {card.value2}, {card.value3}턴 재생!");
+                Debug.Log($"{card.cardName} → {NameOf(target)} {actualDamage} 데미지, 자해 {card.value2}, {card.value3}턴 재생!");
                 CheckPlayerDeath();
                 break;
 
@@ -405,6 +532,8 @@ public class BattleManager : MonoBehaviour
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
     }
 
+    string NameOf(Monster m) => m != null ? m.DisplayName : "(없음)";
+
     IEnumerator RandomCardUseCoroutine(int count)
     {
         List<CardData> allCards = new List<CardData>(deck);
@@ -419,45 +548,41 @@ public class BattleManager : MonoBehaviour
             deck.Remove(randomCard);
             discardPile.Remove(randomCard);
 
-            ApplyCardEffect(randomCard, true);
+            // 단일 타겟 카드면 무작위 살아있는 몬스터에게, 아니면 필드용으로 처리
+            Monster t = null;
+            if (randomCard.requiresTarget)
+            {
+                var alive = GetAliveMonsters();
+                if (alive.Count > 0) t = alive[Random.Range(0, alive.Count)];
+            }
+            ApplyCardEffect(randomCard, t);
             discardPile.Add(randomCard);
 
             yield return new WaitForSeconds(0.3f);
         }
     }
 
-    int CalculateDamage(int baseDamage, CardData card = null)
+    int CalculateDamage(int baseDamage, CardData card, Monster target)
     {
         int damage = baseDamage + playerStrength;
         if (card != null && GazeEffectManager.Instance != null)
         {
-            damage += GazeEffectManager.Instance.GetFlatDamageBonus(card);
-            damage = Mathf.RoundToInt(damage * GazeEffectManager.Instance.GetDamageMultiplier(card));
+            damage += GazeEffectManager.Instance.GetFlatDamageBonus(card, target);
+            damage = Mathf.RoundToInt(damage * GazeEffectManager.Instance.GetDamageMultiplier(card, target));
         }
         if (playerDebuffTurns > 0)
             damage = Mathf.RoundToInt(damage * 0.75f);
-        if (monsterDebuffTurns > 0)
+        if (target != null && target.debuffTurns > 0)
             damage = Mathf.RoundToInt(damage * 1.25f);
         return damage;
     }
 
-    int ApplyDamageToMonster(int damage, CardData card = null)
+    int ApplyDamageToMonster(int damage, CardData card, Monster target)
     {
+        if (target == null || !target.IsAlive) return 0;
         bool ignoreDefense = card != null && GazeEffectManager.Instance != null
-            && GazeEffectManager.Instance.IgnoresMonsterDefense(card);
-        int actualDamage;
-        if (ignoreDefense)
-        {
-            actualDamage = damage;
-        }
-        else
-        {
-            actualDamage = Mathf.Max(0, damage - monsterDefense);
-            monsterDefense = Mathf.Max(0, monsterDefense - damage);
-        }
-        monsterCurrentHp -= actualDamage;
-        if (actualDamage > 0 && monsterHitEffect != null)
-            monsterHitEffect.PlayHit();
+            && GazeEffectManager.Instance.IgnoresMonsterDefense(card, target);
+        int actualDamage = target.TakeDamage(damage, ignoreDefense);
         if (card != null && GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.OnDamageDealt(card, actualDamage);
         return actualDamage;
@@ -506,29 +631,29 @@ public class BattleManager : MonoBehaviour
             else
             {
                 playerCurrentHp -= 20;
-                monsterStrength += 3;
+                foreach (var m in GetAliveMonsters()) m.ApplyStrength(3, 99);
                 gazeLevel = gazeResetValue;
             }
             if (playerHitEffect != null) playerHitEffect.PlayHit();
             CheckPlayerDeath();
         }
 
-        // ✅ 턴 종료 시선 로그 표시
         if (BattleUI.Instance != null)
             BattleUI.Instance.ShowGazeLog(gazeChangeLog);
         gazeChangeLog.Clear();
 
         MonsterTurn();
 
+        // 플레이어/몬스터 방어 리셋, 턴 감소
         playerDefense = 0;
-        monsterDefense = 0;
-
         if (playerStrengthTurns > 0) playerStrengthTurns--;
         if (playerStrengthTurns == 0) playerStrength = 0;
-        if (monsterStrengthTurns > 0) monsterStrengthTurns--;
-        if (monsterStrengthTurns == 0) monsterStrength = 0;
-        if (monsterDebuffTurns > 0) monsterDebuffTurns--;
         if (playerDebuffTurns > 0) playerDebuffTurns--;
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null || !monsters[i].IsAlive) continue;
+            monsters[i].EndOfTurnCleanup();
+        }
 
         turnCount++;
         currentMana = Mathf.Max(0, maxMana - nextTurnManaReduction);
@@ -543,17 +668,36 @@ public class BattleManager : MonoBehaviour
 
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
         if (PlayerHand.Instance != null) PlayerHand.Instance.OnTurnEnd();
+        RefreshAllIntents();
     }
 
     void MonsterTurn()
     {
-        if (monsterNextAction == null) return;
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            var m = monsters[i];
+            if (m == null || !m.IsAlive || m.nextAction == null) continue;
+            ExecuteMonsterAction(m);
+            if (playerCurrentHp <= 0) break;
+        }
 
-        switch (monsterNextAction.actionType)
+        // 다음 턴 행동 결정
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            var m = monsters[i];
+            if (m == null || !m.IsAlive) continue;
+            m.nextAction = m.PickNextAction();
+        }
+    }
+
+    void ExecuteMonsterAction(Monster m)
+    {
+        var action = m.nextAction;
+        switch (action.actionType)
         {
             case MonsterData.ActionType.Attack:
-                int damage = monsterNextAction.value + monsterStrength;
-
+            {
+                int damage = action.value + m.strength;
                 if (GazeEffectManager.Instance != null)
                     damage += GazeEffectManager.Instance.GetMonsterBonusAttack();
 
@@ -567,25 +711,33 @@ public class BattleManager : MonoBehaviour
                 }
                 CheckPlayerDeath();
                 break;
-
+            }
             case MonsterData.ActionType.Defend:
-                monsterDefense += monsterNextAction.value;
+                m.AddDefense(action.value);
                 break;
-
             case MonsterData.ActionType.Buff:
-                monsterStrength += 5;
-                monsterStrengthTurns = monsterNextAction.duration;
+                m.ApplyStrength(5, action.duration);
                 break;
-
             case MonsterData.ActionType.Debuff:
-                playerDebuffTurns = monsterNextAction.duration;
+                playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
                 break;
+            case MonsterData.ActionType.AttackAndDebuff:
+            {
+                int damage = action.value + m.strength;
+                if (GazeEffectManager.Instance != null)
+                    damage += GazeEffectManager.Instance.GetMonsterBonusAttack();
+                int actualDamage = Mathf.Max(0, damage - playerDefense);
+                playerDefense = Mathf.Max(0, playerDefense - damage);
+                if (actualDamage > 0)
+                {
+                    playerCurrentHp -= actualDamage;
+                    if (playerHitEffect != null) playerHitEffect.PlayHit();
+                }
+                playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
+                CheckPlayerDeath();
+                break;
+            }
         }
-
-        monsterNextAction = monsterData.GetNextAction();
-
-        if (BattleUI.Instance != null)
-            BattleUI.Instance.UpdateMonsterIntent();
     }
 
     public void ChangeGaze(int amount, string reason = "")
@@ -594,7 +746,6 @@ public class BattleManager : MonoBehaviour
         gazeLevel = Mathf.Clamp(gazeLevel + amount, 0, 100);
         int actual = gazeLevel - before;
 
-        // ✅ 수정: "카드이름 +8" 형식으로 저장
         if (actual != 0 && reason != "")
         {
             string sign = actual > 0 ? "+" : "";
@@ -613,11 +764,23 @@ public class BattleManager : MonoBehaviour
 
     void CheckMonsterDeath()
     {
-        if (monsterCurrentHp <= 0)
+        bool anyKilled = false;
+        for (int i = 0; i < monsters.Count; i++)
         {
-            monsterCurrentHp = 0;
-            if (GazeEffectManager.Instance != null)
-                GazeEffectManager.Instance.OnMonsterKilled();
+            var m = monsters[i];
+            if (m == null) continue;
+            if (m.currentHp <= 0 && m.gameObject.activeSelf)
+            {
+                m.currentHp = 0;
+                anyKilled = true;
+                if (GazeEffectManager.Instance != null)
+                    GazeEffectManager.Instance.OnMonsterKilled();
+                m.Die();
+            }
+        }
+
+        if (anyKilled && !AnyMonsterAlive)
+        {
             if (GameManager.Instance != null)
                 GameManager.Instance.playerCurrentHp = playerCurrentHp;
             UnityEngine.SceneManagement.SceneManager.LoadScene("RewardScene");

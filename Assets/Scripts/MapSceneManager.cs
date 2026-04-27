@@ -195,6 +195,7 @@ public class MapSceneManager : MonoBehaviour
                 Debug.Log("시작 노드 — 추후 구현");
                 break;
             case NodeData.NodeType.Combat:
+                PickEncounterFor(NodeData.NodeType.Combat);
                 if (GameManager.Instance != null)
                     GameManager.Instance.LoadBattle();
                 else
@@ -216,12 +217,25 @@ public class MapSceneManager : MonoBehaviour
                     SceneManager.LoadScene("BrandNodeScene");
                 break;
             case NodeData.NodeType.Boss:
+                PickEncounterFor(NodeData.NodeType.Boss);
                 if (GameManager.Instance != null)
                     GameManager.Instance.LoadBattle();
                 else
                     SceneManager.LoadScene("BattleScene");
                 break;
         }
+    }
+
+    void PickEncounterFor(NodeData.NodeType type)
+    {
+        if (EncounterDatabase.Instance == null)
+        {
+            Debug.LogWarning("[MapSceneManager] EncounterDatabase 가 없어 BattleManager 폴백 사용");
+            return;
+        }
+        EncounterDatabase.NextEncounter = EncounterDatabase.Instance.PickForNode(type);
+        if (EncounterDatabase.NextEncounter != null)
+            Debug.Log($"[Encounter] 선택: {EncounterDatabase.NextEncounter.encounterName}");
     }
 
     void UpdateAccessibleNodes()

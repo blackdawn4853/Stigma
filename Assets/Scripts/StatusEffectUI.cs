@@ -133,15 +133,24 @@ public class StatusEffectUI : MonoBehaviour
         playerRegen.SetActive(pRegenAct);
         if (pRegenAct) playerRegen.value.text = GetRegenTurns(bm) + "T";
 
-        // ─── 몬스터 ───────────────────────────────────────────────
-        bool mStrAct = bm.monsterStrengthTurns > 0 && bm.monsterStrength != 0;
-        monsterStrength.SetActive(mStrAct);
-        if (mStrAct)
-            monsterStrength.value.text = (bm.monsterStrength > 0 ? "+" : "") + bm.monsterStrength + "/" + bm.monsterStrengthTurns + "T";
+        // ─── 몬스터 (레거시 단일 표시: PrimaryMonster 기준. 다중에서는 MonsterRuntimeUI 가 메인) ─
+        Monster primary = bm.PrimaryMonster;
+        if (primary != null)
+        {
+            bool mStrAct = primary.strengthTurns > 0 && primary.strength != 0;
+            monsterStrength.SetActive(mStrAct);
+            if (mStrAct)
+                monsterStrength.value.text = (primary.strength > 0 ? "+" : "") + primary.strength + "/" + primary.strengthTurns + "T";
 
-        bool mWeakAct = bm.monsterDebuffTurns > 0;
-        monsterWeak.SetActive(mWeakAct);
-        if (mWeakAct) monsterWeak.value.text = bm.monsterDebuffTurns + "T";
+            bool mWeakAct = primary.debuffTurns > 0;
+            monsterWeak.SetActive(mWeakAct);
+            if (mWeakAct) monsterWeak.value.text = primary.debuffTurns + "T";
+        }
+        else
+        {
+            monsterStrength.SetActive(false);
+            monsterWeak.SetActive(false);
+        }
     }
 
     int GetRegenTurns(BattleManager bm)

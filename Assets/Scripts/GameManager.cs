@@ -80,6 +80,11 @@ public class GameManager : MonoBehaviour
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.InitializeRun();
+
+        // 새 런: 인카운터 최근 메모리 리셋
+        if (EncounterDatabase.Instance != null)
+            EncounterDatabase.Instance.ResetAllRecent();
+        EncounterDatabase.NextEncounter = null;
     }
 
     public void OnBossDefeated()

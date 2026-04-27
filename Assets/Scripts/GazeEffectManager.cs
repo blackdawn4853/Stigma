@@ -344,8 +344,8 @@ public class GazeEffectManager : MonoBehaviour
         // 100-1 무료 카드 만료
         outerGodFreeCards.Clear();
 
-        // 처치 누적 카운트
-        if (bm.monsterCurrentHp > 0)
+        // 처치 누적 카운트 (한 마리라도 살아있으면 처치 실패로 간주)
+        if (bm.AnyMonsterAlive)
             consecutiveTurnsWithoutKill++;
     }
 
@@ -461,7 +461,7 @@ public class GazeEffectManager : MonoBehaviour
         return Mathf.Max(0, cost);
     }
 
-    public int GetFlatDamageBonus(CardData card)
+    public int GetFlatDamageBonus(CardData card, Monster target = null)
     {
         if (card == null || BattleManager.Instance == null) return 0;
         int bonus = 0;
@@ -473,9 +473,10 @@ public class GazeEffectManager : MonoBehaviour
         if (IsActive(GazeEffectType.ForbiddenResonance) && bm.gazeLevel >= 20 && isForbidden)
             bonus += forbiddenResonanceDamage;
 
-        // 20-4 약점 추적: 적 체력 50% 이하
+        // 20-4 약점 추적: 타겟 몬스터 체력 50% 이하 (전체타겟 카드는 각 몬스터별 평가)
         if (IsActive(GazeEffectType.WeaknessTracking) && bm.gazeLevel >= 20
-            && bm.monsterData != null && bm.monsterCurrentHp * 2 <= bm.monsterData.maxHp)
+            && target != null && target.data != null
+            && target.currentHp * 2 <= target.data.maxHp)
             bonus += weaknessTrackingDamage;
 
         // 60-2 폭식 버프
@@ -493,15 +494,16 @@ public class GazeEffectManager : MonoBehaviour
         return bonus;
     }
 
-    public float GetDamageMultiplier(CardData card)
+    public float GetDamageMultiplier(CardData card, Monster target = null)
     {
         if (card == null || BattleManager.Instance == null) return 1f;
         BattleManager bm = BattleManager.Instance;
         float mul = 1f;
 
-        // 80-3 파멸 계약: 적 30% 이하면 +50%
+        // 80-3 파멸 계약: 타겟 몬스터 30% 이하면 +50%
         if (IsActive(GazeEffectType.DoomContract) && bm.gazeLevel >= 80
-            && bm.monsterData != null && bm.monsterCurrentHp * 10 <= bm.monsterData.maxHp * 3)
+            && target != null && target.data != null
+            && target.currentHp * 10 <= target.data.maxHp * 3)
             mul *= doomContractDamageMultiplier;
 
         // 100-3 개안 표식: +50%
@@ -511,7 +513,7 @@ public class GazeEffectManager : MonoBehaviour
         return mul;
     }
 
-    public bool IgnoresMonsterDefense(CardData card)
+    public bool IgnoresMonsterDefense(CardData card, Monster target = null)
     {
         return openEyeMarkActive;
     }
@@ -604,9 +606,9 @@ public class GazeEffectManager : MonoBehaviour
 
         if (activeEffect100 == null)
         {
-            // 폴백: 기존 저주 동작
+            // 폴백: 기존 저주 동작 (모든 살아있는 몬스터에 힘 +3 영구)
             bm.playerCurrentHp -= 20;
-            bm.monsterStrength += 3;
+            foreach (var mm in bm.GetAliveMonsters()) mm.ApplyStrength(3, 99);
             bm.gazeLevel = gazeResetOn100;
             if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
             return;
