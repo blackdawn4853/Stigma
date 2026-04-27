@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/black/prototype commit -m ' *)",
+      "Bash(git -C /c/Users/black/prototype log --oneline -3)",
+      "Bash(git *)",
+      "mcp__unity-mcp__read_console",
+      "mcp__unity-mcp__manage_scene",
+      "mcp__unity-mcp__find_gameobjects",
+      "mcp__unity-mcp__manage_gameobject",
+      "mcp__unity-mcp__execute_code",
+      "mcp__unity-mcp__manage_build",
+      "mcp__unity-mcp__refresh_unity"
+    ]
+  }
+}
