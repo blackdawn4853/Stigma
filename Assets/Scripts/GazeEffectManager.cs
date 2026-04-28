@@ -361,7 +361,9 @@ public class GazeEffectManager : MonoBehaviour
         if (isForbidden) forbiddenPlayedThisTurn++;
         else nonForbiddenPlayedThisTurn++;
 
-        if (card.cardType == CardData.CardType.Attack) attackPlayedThisTurn++;
+        // "공격 카드" 로 카운트되는 기준은 cardType 이 아니라 실제 데미지를 주는지로 판단.
+        // 금단(크툴루) 카드라도 데미지를 주면 얇은 방벽/첫 일격 등에서 공격으로 인식됨.
+        if (IsDamageCard(card)) attackPlayedThisTurn++;
 
         // 80-2 첫 카드 무료 소비 표시
         if (IsActive(GazeEffectType.TornMoment) && !tornMomentFirstCardConsumed)
@@ -413,8 +415,8 @@ public class GazeEffectManager : MonoBehaviour
     {
         if (card == null) return;
 
-        bool isAttack = card.cardType == CardData.CardType.Attack;
-        if (isAttack && !firstAttackResolvedThisTurn)
+        // 첫 일격 추적도 "데미지 카드" 기준 — 금단의 데미지 카드 포함.
+        if (IsDamageCard(card) && !firstAttackResolvedThisTurn)
         {
             firstAttackResolvedThisTurn = true;
             firstAttackDealtDamageThisTurn = damageDealt > 0;
@@ -467,7 +469,8 @@ public class GazeEffectManager : MonoBehaviour
         int bonus = 0;
         BattleManager bm = BattleManager.Instance;
         bool isForbidden = card.cardType == CardData.CardType.Forbidden;
-        bool isAttack = card.cardType == CardData.CardType.Attack;
+        // "공격 카드" 인지 여부 — 금단이라도 데미지를 주면 첫 일격 보너스 적용 대상이 됨.
+        bool isAttack = IsDamageCard(card);
 
         // 20-1 금단의 감응 버프
         if (IsActive(GazeEffectType.ForbiddenResonance) && bm.gazeLevel >= 20 && isForbidden)
@@ -553,17 +556,70 @@ public class GazeEffectManager : MonoBehaviour
         return false;
     }
 
-    bool IsShieldCard(CardData card)
+    // ─── 카드 분류 헬퍼 (외부에서도 재사용) ──────────────────────────
+    // "데미지를 주는 카드" — 어떤 cardType 이든(Attack/Skill/Forbidden) 데미지 효과면 true.
+    // 얇은 방벽 / 첫 일격 / 약점 추적 등 "공격 카드" 기반 시선 효과의 통일된 판정 기준.
+    public static bool IsDamageCard(CardData card)
     {
+        if (card == null) return false;
+        switch (card.effectType)
+        {
+            case CardData.CardEffectType.Damage:
+            case CardData.CardEffectType.DamageAndShield:
+            case CardData.CardEffectType.MultiHit:
+            case CardData.CardEffectType.PenetratingDamage:
+            case CardData.CardEffectType.RandomDamage:
+            case CardData.CardEffectType.AllDamage:
+            case CardData.CardEffectType.AllMultiHit:
+            case CardData.CardEffectType.DamageSelfDamage:
+                return true;
+        }
+        return false;
+    }
+
+    public static bool IsShieldCard(CardData card)
+    {
+        if (card == null) return false;
         switch (card.effectType)
         {
             case CardData.CardEffectType.Shield:
             case CardData.CardEffectType.DamageAndShield:
             case CardData.CardEffectType.ShieldAndDraw:
-            case CardData.CardEffectType.ImmunityShield:
                 return true;
         }
         return false;
+    }
+
+    // 카드 설명에 표시되는 기본 데미지/방어도 값 — 시선 효과로 변경 시 색상 강조에 사용.
+    public static int GetCardBaseDamageValue(CardData card)
+    {
+        if (card == null) return 0;
+        switch (card.effectType)
+        {
+            case CardData.CardEffectType.Damage:
+            case CardData.CardEffectType.DamageAndShield:
+            case CardData.CardEffectType.MultiHit:
+            case CardData.CardEffectType.PenetratingDamage:
+            case CardData.CardEffectType.AllDamage:
+            case CardData.CardEffectType.AllMultiHit:
+            case CardData.CardEffectType.DamageSelfDamage:
+                return card.value;
+        }
+        return 0;
+    }
+
+    public static int GetCardBaseShieldValue(CardData card)
+    {
+        if (card == null) return 0;
+        switch (card.effectType)
+        {
+            case CardData.CardEffectType.Shield:
+            case CardData.CardEffectType.ShieldAndDraw:
+                return card.value;
+            case CardData.CardEffectType.DamageAndShield:
+                return card.value2;
+        }
+        return 0;
     }
 
     // ────────────────────────────────────────────────────────────────

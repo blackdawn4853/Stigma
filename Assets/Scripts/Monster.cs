@@ -108,17 +108,21 @@ public class Monster : MonoBehaviour
     public int TakeDamage(int damage, bool ignoreDefense)
     {
         int actual;
+        int defenseAbsorbed;
         if (ignoreDefense)
         {
             actual = damage;
+            defenseAbsorbed = 0;
         }
         else
         {
+            defenseAbsorbed = Mathf.Min(defense, damage);
             actual = Mathf.Max(0, damage - defense);
             defense = Mathf.Max(0, defense - damage);
         }
         currentHp -= actual;
         if (actual > 0 && hitEffect != null) hitEffect.PlayHit();
+        Debug.Log($"[{DisplayName}] 받은 데미지 {damage}, 방어도 {defenseAbsorbed} 차감, HP -{actual}");
         return actual;
     }
 
@@ -142,10 +146,15 @@ public class Monster : MonoBehaviour
         debuffTurns = Mathf.Max(debuffTurns, turns);
     }
 
-    // 턴 종료 시 방어도 리셋 + 버프/디버프 턴수 감소
-    public void EndOfTurnCleanup()
+    // 자기 턴 시작 시 방어도 리셋 (StS 방식 — 이전 턴에 쌓은 블록은 다음 자기 턴까지 유지)
+    public void BeginTurn()
     {
         defense = 0;
+    }
+
+    // 턴 종료 시 버프/디버프 턴수 감소 (방어도는 BeginTurn에서 처리)
+    public void EndOfTurnCleanup()
+    {
         if (strengthTurns > 0) strengthTurns--;
         if (strengthTurns == 0) strength = 0;
         if (debuffTurns > 0) debuffTurns--;

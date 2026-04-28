@@ -9,6 +9,7 @@ public class SaveData
     public int playerMaxHp;
     public int playerCurrentHp;
     public int playerGold;
+    public int runGazeLevel;
     public bool startNodeUnlocked;
     public int bossesDefeated;
     public List<string> deckCardNames = new List<string>();
@@ -31,6 +32,9 @@ public class GameManager : MonoBehaviour
     public int playerMaxHp = 100;
     public int playerCurrentHp = 100;
     public int playerGold = 100;
+
+    [Header("런 단위 시선 (전투 사이에 유지됨, 새 런 시작/사망 시 0)")]
+    public int runGazeLevel = 0;
 
     [Header("던전 상태")]
     public bool returningFromBattle = false;
@@ -98,6 +102,7 @@ public class GameManager : MonoBehaviour
     {
         playerCurrentHp = playerMaxHp;
         playerGold = 100;
+        runGazeLevel = 0;
         InitializeDeck();
         savedNodeStates.Clear();
         currentNodeLayer = -1;
@@ -199,6 +204,7 @@ public class GameManager : MonoBehaviour
         data.playerMaxHp = playerMaxHp;
         data.playerCurrentHp = playerCurrentHp;
         data.playerGold = playerGold;
+        data.runGazeLevel = runGazeLevel;
         data.startNodeUnlocked = startNodeUnlocked;
         data.bossesDefeated = bossesDefeated;
         foreach (CardData card in playerDeck)
@@ -221,6 +227,7 @@ public class GameManager : MonoBehaviour
         playerMaxHp = data.playerMaxHp;
         playerCurrentHp = data.playerCurrentHp;
         playerGold = data.playerGold;
+        runGazeLevel = data.runGazeLevel;
         startNodeUnlocked = data.startNodeUnlocked;
         bossesDefeated = data.bossesDefeated;
 

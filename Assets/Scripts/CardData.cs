@@ -53,7 +53,6 @@ public class CardData : ScriptableObject
         AllDamage,          // 전체공격 (value=데미지)
         AllMultiHit,        // 전체 다중공격 (value=1회데미지, value2=횟수)
         DamageSelfDamage,   // 살점폭발 (value=데미지, value2=자해, value3=재생턴)
-        ImmunityShield,     // 절대방어 (value=방어도, 디버프면역)
         RandomCardUse,      // 이성붕괴 (value=카드장수, 랜덤사용)
     }
 

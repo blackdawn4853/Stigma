@@ -15,6 +15,12 @@ public class BattleManager : MonoBehaviour
     public Transform encounterAnchor; // 비워두면 (0, -1, 0) 기준
     public Vector3 defaultAnchorPosition = new Vector3(5f, -1f, 0f);
 
+    [Header("카메라 프레이밍 (몬스터 수에 따라 직교 사이즈 조정)")]
+    public Camera battleCamera;
+    public bool autoFindBattleCamera = true;
+    // index 0 = 1마리, 1 = 2마리, 2 = 3마리, 3 = 4마리. 부족하면 마지막 값 사용.
+    public float[] cameraSizeByMonsterCount = { 5f, 6f, 7f, 8f };
+
     [Header("플레이어 설정")]
     public int playerCurrentHp;
     public int playerMaxHp = 100;
@@ -49,6 +55,8 @@ public class BattleManager : MonoBehaviour
     private int nextTurnManaReduction = 0;
     private int regenHealAmount = 5;
     private int regenTurnsRemaining = 0;
+
+    public int RegenTurnsRemaining => regenTurnsRemaining;
 
     // ─── 다중 몬스터 호환 헬퍼 ─────────────────────────────────────
     public Monster PrimaryMonster => GetFirstAlive() ?? (monsters.Count > 0 ? monsters[0] : null);
@@ -159,7 +167,8 @@ public class BattleManager : MonoBehaviour
         playerStrength = 0;
         playerStrengthTurns = 0;
         playerDebuffTurns = 0;
-        gazeLevel = 0;
+        // 시선은 런 단위로 유지 — 전투 사이에도 GameManager.runGazeLevel 에서 이어받음.
+        gazeLevel = GameManager.Instance != null ? GameManager.Instance.runGazeLevel : 0;
         usedForbiddenInCursedZone = false;
         maxMana = 3;
         currentMana = maxMana;
@@ -175,6 +184,8 @@ public class BattleManager : MonoBehaviour
             monsters[i].CacheFinalPosition();
             monsters[i].InitializeForBattle();
         }
+
+        ApplyCameraFraming();
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.InitializeBattle();
@@ -264,6 +275,23 @@ public class BattleManager : MonoBehaviour
 
         introComplete = true;
         Debug.Log("인트로 완료!");
+    }
+
+    void ApplyCameraFraming()
+    {
+        if (battleCamera == null && autoFindBattleCamera) battleCamera = Camera.main;
+        if (battleCamera == null || !battleCamera.orthographic) return;
+        if (cameraSizeByMonsterCount == null || cameraSizeByMonsterCount.Length == 0) return;
+
+        int count = 0;
+        for (int i = 0; i < monsters.Count; i++)
+            if (monsters[i] != null) count++;
+        if (count <= 0) return;
+
+        int idx = Mathf.Clamp(count - 1, 0, cameraSizeByMonsterCount.Length - 1);
+        float targetSize = cameraSizeByMonsterCount[idx];
+        battleCamera.orthographicSize = targetSize;
+        Debug.Log($"[BattleManager] 카메라 프레이밍: 몬스터 {count}마리 → orthographicSize {targetSize}");
     }
 
     void RefreshAllIntents()
@@ -516,12 +544,6 @@ public class BattleManager : MonoBehaviour
                 CheckPlayerDeath();
                 break;
 
-            case CardData.CardEffectType.ImmunityShield:
-                playerDefense += GetCardShield(card, card.value);
-                playerDebuffTurns = 0;
-                Debug.Log($"{card.cardName} — 방어도 + 디버프 면역!");
-                break;
-
             case CardData.CardEffectType.RandomCardUse:
                 StartCoroutine(RandomCardUseCoroutine(card.value));
                 break;
@@ -571,7 +593,12 @@ public class BattleManager : MonoBehaviour
             damage = Mathf.RoundToInt(damage * GazeEffectManager.Instance.GetDamageMultiplier(card, target));
         }
         if (playerDebuffTurns > 0)
+        {
+            int before = damage;
             damage = Mathf.RoundToInt(damage * 0.75f);
+            string cardName = card != null ? card.cardName : "?";
+            Debug.Log($"[약화 적용] {cardName} 데미지 {before} → {damage} (25% 감소, 남은 턴 {playerDebuffTurns})");
+        }
         if (target != null && target.debuffTurns > 0)
             damage = Mathf.RoundToInt(damage * 1.25f);
         return damage;
@@ -597,6 +624,24 @@ public class BattleManager : MonoBehaviour
             shield = Mathf.RoundToInt(shield * GazeEffectManager.Instance.GetShieldMultiplier());
         }
         return Mathf.Max(0, shield);
+    }
+
+    // 카드 UI 가 손패에서 표시할 "현재 시선/근력/약화 보정이 반영된 데미지/방어도" 미리보기.
+    // target=null 이라 타겟 의존 효과(약점추적/파멸계약 등)는 제외 — 대상이 정해진 후 실제 적용 시 추가됨.
+    public int PreviewCardDamage(CardData card)
+    {
+        if (card == null) return 0;
+        int baseV = GazeEffectManager.GetCardBaseDamageValue(card);
+        if (baseV <= 0) return 0;
+        return CalculateDamage(baseV, card, null);
+    }
+
+    public int PreviewCardShield(CardData card)
+    {
+        if (card == null) return 0;
+        int baseV = GazeEffectManager.GetCardBaseShieldValue(card);
+        if (baseV <= 0) return 0;
+        return GetCardShield(card, baseV);
     }
 
     public void EndTurn()
@@ -642,13 +687,16 @@ public class BattleManager : MonoBehaviour
             BattleUI.Instance.ShowGazeLog(gazeChangeLog);
         gazeChangeLog.Clear();
 
-        MonsterTurn();
-
-        // 플레이어/몬스터 방어 리셋, 턴 감소
-        playerDefense = 0;
+        // 플레이어 버프/디버프 턴수 감소: MonsterTurn 이전에 처리해야
+        // 이번 MonsterTurn 에서 새로 걸리는 디버프(약화 등)가 즉시 0턴으로 사라지지 않는다.
         if (playerStrengthTurns > 0) playerStrengthTurns--;
         if (playerStrengthTurns == 0) playerStrength = 0;
         if (playerDebuffTurns > 0) playerDebuffTurns--;
+
+        MonsterTurn();
+
+        // 플레이어 방어도 리셋 (이번 MonsterTurn 동안 방어 흡수에 쓰임)
+        playerDefense = 0;
         for (int i = 0; i < monsters.Count; i++)
         {
             if (monsters[i] == null || !monsters[i].IsAlive) continue;
@@ -677,6 +725,7 @@ public class BattleManager : MonoBehaviour
         {
             var m = monsters[i];
             if (m == null || !m.IsAlive || m.nextAction == null) continue;
+            m.BeginTurn();
             ExecuteMonsterAction(m);
             if (playerCurrentHp <= 0) break;
         }
@@ -714,6 +763,7 @@ public class BattleManager : MonoBehaviour
             }
             case MonsterData.ActionType.Defend:
                 m.AddDefense(action.value);
+                Debug.Log($"[{m.DisplayName}] 방어도 +{action.value}, 현재 방어도: {m.defense}");
                 break;
             case MonsterData.ActionType.Buff:
                 m.ApplyStrength(5, action.duration);
@@ -782,7 +832,10 @@ public class BattleManager : MonoBehaviour
         if (anyKilled && !AnyMonsterAlive)
         {
             if (GameManager.Instance != null)
+            {
                 GameManager.Instance.playerCurrentHp = playerCurrentHp;
+                GameManager.Instance.runGazeLevel = gazeLevel; // 런 단위 시선 유지
+            }
             UnityEngine.SceneManagement.SceneManager.LoadScene("RewardScene");
         }
     }

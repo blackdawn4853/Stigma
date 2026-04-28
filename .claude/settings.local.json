@@ -10,7 +10,10 @@
       "mcp__unity-mcp__manage_gameobject",
       "mcp__unity-mcp__execute_code",
       "mcp__unity-mcp__manage_build",
-      "mcp__unity-mcp__refresh_unity"
+      "mcp__unity-mcp__refresh_unity",
+      "mcp__unity-mcp__manage_asset",
+      "mcp__unity-mcp__manage_components",
+      "mcp__unity-mcp__manage_prefabs"
     ]
   }
 }

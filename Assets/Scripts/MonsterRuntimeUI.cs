@@ -24,9 +24,12 @@ public class MonsterRuntimeUI : MonoBehaviour
     private Slider hpBar;
     private Image hpFill;
     private TextMeshProUGUI hpText;
-    private TextMeshProUGUI defenseText;
-    private TextMeshProUGUI strengthText;
-    private TextMeshProUGUI weakText;
+
+    // 방어도 배지 (HP바 좌측에 붙음)
+    private DefenseBadgeUI defenseBadge;
+
+    // 상태 아이콘 줄
+    private StatusIconBar statusBar;
 
     private GameObject intentRoot;
     private Image intentIcon;
@@ -64,7 +67,8 @@ public class MonsterRuntimeUI : MonoBehaviour
         rt.localScale = Vector3.one * canvasScale;
 
         BuildHpBar(rt);
-        BuildStatusRow(rt);
+        BuildDefenseBadge(rt);
+        BuildStatusBar(rt);
         BuildIntent(rt);
     }
 
@@ -124,30 +128,31 @@ public class MonsterRuntimeUI : MonoBehaviour
         hpText.text = "0/0";
         hpText.color = Color.white;
         hpText.fontStyle = FontStyles.Bold;
-
-        // 방어도 텍스트 (HP바 좌측 위)
-        defenseText = AddText(parent, "DefenseText", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(-130f, 75f), new Vector2(80f, 24f), 16, TextAlignmentOptions.Left);
-        defenseText.color = new Color(0.4f, 0.7f, 1f);
-        defenseText.fontStyle = FontStyles.Bold;
-        defenseText.text = "";
     }
 
-    void BuildStatusRow(RectTransform parent)
+    // 방어도 배지: HP바 좌측 끝에 살짝 겹치게 붙임. 누구 방어도인지 시각적으로 명확하게 묶임.
+    void BuildDefenseBadge(RectTransform parent)
     {
-        // 근력
-        strengthText = AddText(parent, "StrengthText", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(-60f, 30f), new Vector2(110f, 22f), 14, TextAlignmentOptions.Left);
-        strengthText.color = new Color(1f, 0.55f, 0.55f);
-        strengthText.fontStyle = FontStyles.Bold;
-        strengthText.text = "";
+        // HP 바는 anchored (0, 60), size 220×28, pivot bottom-center → 좌단은 x=-110, 세로 중앙 y=74.
+        defenseBadge = DefenseBadgeUI.Create(parent,
+            anchorMin: new Vector2(0.5f, 0f),
+            anchorMax: new Vector2(0.5f, 0f),
+            pivot: new Vector2(0.5f, 0.5f),
+            anchoredPos: new Vector2(-100f, 74f),
+            size: new Vector2(60f, 60f),
+            bgColor: defendColor);
+    }
 
-        // 약화
-        weakText = AddText(parent, "WeakText", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0.5f, 0f), new Vector2(60f, 30f), new Vector2(110f, 22f), 14, TextAlignmentOptions.Left);
-        weakText.color = new Color(0.8f, 0.6f, 1f);
-        weakText.fontStyle = FontStyles.Bold;
-        weakText.text = "";
+    // 상태 아이콘 줄: HP바 위쪽
+    void BuildStatusBar(RectTransform parent)
+    {
+        statusBar = StatusIconBar.Create(parent,
+            anchorMin: new Vector2(0.5f, 0f),
+            anchorMax: new Vector2(0.5f, 0f),
+            pivot: new Vector2(0f, 0f),
+            anchoredPos: new Vector2(-110f, 92f),
+            size: new Vector2(220f, 28f),
+            iconSize: new Vector2(28f, 28f));
     }
 
     void BuildIntent(RectTransform parent)
@@ -158,7 +163,7 @@ public class MonsterRuntimeUI : MonoBehaviour
         iRt.anchorMin = new Vector2(0.5f, 0f);
         iRt.anchorMax = new Vector2(0.5f, 0f);
         iRt.pivot = new Vector2(0.5f, 0f);
-        iRt.anchoredPosition = new Vector2(0f, 105f);
+        iRt.anchoredPosition = new Vector2(0f, 128f);
         iRt.sizeDelta = new Vector2(220f, 60f);
         var bg = intentRoot.GetComponent<Image>();
         bg.color = new Color(0f, 0f, 0f, 0.55f);
@@ -275,19 +280,8 @@ public class MonsterRuntimeUI : MonoBehaviour
         if (hpBar != null) hpBar.value = Mathf.Clamp01(ratio);
         if (hpText != null) hpText.text = $"{Mathf.Max(0, monster.currentHp)}/{monster.data.maxHp}";
 
-        if (defenseText != null)
-            defenseText.text = monster.defense > 0 ? $"방어 {monster.defense}" : "";
-
-        if (strengthText != null)
-        {
-            bool active = monster.strengthTurns > 0 && monster.strength != 0;
-            strengthText.text = active
-                ? $"근력 {(monster.strength > 0 ? "+" : "")}{monster.strength}/{monster.strengthTurns}T"
-                : "";
-        }
-
-        if (weakText != null)
-            weakText.text = monster.debuffTurns > 0 ? $"약화 {monster.debuffTurns}T" : "";
+        if (defenseBadge != null) defenseBadge.SetValue(monster.defense);
+        if (statusBar != null) statusBar.RefreshFromMonster(monster);
     }
 
     public void UpdateIntent()
@@ -317,24 +311,24 @@ public class MonsterRuntimeUI : MonoBehaviour
                 if (GazeEffectManager.Instance != null)
                     dmg += GazeEffectManager.Instance.GetMonsterBonusAttack();
                 if (intentText != null) intentText.text = $"공격 {dmg}";
-                if (intentIcon != null) intentIcon.color = attackColor;
+                SetIntentIcon(BattleIcons.Strike, attackColor);
                 break;
             }
 
             case MonsterData.ActionType.Defend:
                 if (intentText != null) intentText.text = $"방어 {action.value}";
-                if (intentIcon != null) intentIcon.color = defendColor;
+                SetIntentIcon(BattleIcons.Defense, defendColor);
                 break;
 
             case MonsterData.ActionType.Buff:
                 if (intentText != null) intentText.text = "강화";
-                if (intentIcon != null) intentIcon.color = buffColor;
+                SetIntentIcon(null, buffColor);
                 if (intentTurnText != null) intentTurnText.text = $"{action.duration}턴";
                 break;
 
             case MonsterData.ActionType.Debuff:
                 if (intentText != null) intentText.text = "약화";
-                if (intentIcon != null) intentIcon.color = debuffColor;
+                SetIntentIcon(null, debuffColor);
                 if (intentTurnText != null) intentTurnText.text = $"{action.duration}턴";
                 break;
 
@@ -344,16 +338,35 @@ public class MonsterRuntimeUI : MonoBehaviour
                 if (GazeEffectManager.Instance != null)
                     dmg2 += GazeEffectManager.Instance.GetMonsterBonusAttack();
                 if (intentText != null) intentText.text = $"공격 {dmg2}";
-                if (intentIcon != null) intentIcon.color = attackColor;
+                SetIntentIcon(BattleIcons.Strike, attackColor);
                 if (intentTurnText != null) intentTurnText.text = $"약화 {action.duration}턴";
                 break;
             }
         }
     }
 
+    // 등록된 스프라이트가 있으면 흰색으로 그대로 그리고, 없으면 컬러 원형 폴백.
+    void SetIntentIcon(Sprite sprite, Color fallbackColor)
+    {
+        if (intentIcon == null) return;
+        if (sprite != null)
+        {
+            intentIcon.sprite = sprite;
+            intentIcon.color = Color.white;
+            intentIcon.preserveAspect = true;
+        }
+        else
+        {
+            intentIcon.sprite = null;
+            intentIcon.color = fallbackColor;
+        }
+    }
+
     public void OnDeath()
     {
         if (intentRoot != null) intentRoot.SetActive(false);
+        if (defenseBadge != null) defenseBadge.SetValue(0);
+        if (statusBar != null) statusBar.RefreshFromMonster(null);
         if (hpText != null) hpText.text = "0/0";
         if (hpBar != null) hpBar.value = 0f;
         Destroy(gameObject, 0.5f);
