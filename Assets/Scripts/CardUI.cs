@@ -11,6 +11,10 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public TextMeshProUGUI manaCostText;
     public Image cardBackground;
     public Image rarityBorder;
+    // 카드별 일러스트 — CardData.cardImage 가 있으면 표시, 없으면 비활성. 카드 전체를 덮는 배경.
+    public Image cardArtImage;
+    // 카드별 식별 아이콘 — CardData.cardIcon 이 있으면 표시 (공격=주먹/방어=방패 등). 카드 중앙.
+    public Image cardIconImage;
 
     [Header("호버 설정")]
     public float hoverScale = 1.6f;
@@ -21,6 +25,9 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public float arrowTriggerDistance = 80f;
 
     private CardData cardData;
+    // 손패 카드 인스턴스 ID — 같은 SO 가 여러 장일 때 인스턴스 단위 효과(40-4 등)가 정확히 매칭되게 함.
+    // 0 이면 미지정 (랜덤 카드 사용 등 손패 외 사용에서 사용).
+    private int instanceId;
     private Vector3 originalScale;
     private Vector3 originalPosition;
     private Vector3 targetScale;
@@ -70,7 +77,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
         if (manaCostText != null)
         {
             int cost = GazeEffectManager.Instance != null
-                ? GazeEffectManager.Instance.GetEffectiveCost(cardData)
+                ? GazeEffectManager.Instance.GetEffectiveCost(cardData, instanceId)
                 : cardData.manaCost;
             manaCostText.text = cost.ToString();
             manaCostText.color = cost < cardData.manaCost ? new Color(0.4f, 1f, 0.6f)
@@ -237,7 +244,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
                 if (targetMonster == null) targetMonster = hit.GetComponentInParent<Monster>();
                 if (targetMonster != null && targetMonster.IsAlive)
                 {
-                    success = BattleManager.Instance.PlayCardOnMonster(cardData, targetMonster);
+                    success = BattleManager.Instance.PlayCardOnMonster(cardData, targetMonster, instanceId);
                 }
                 else
                 {
@@ -251,7 +258,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
         }
         else
         {
-            success = BattleManager.Instance.PlayCardOnField(cardData);
+            success = BattleManager.Instance.PlayCardOnField(cardData, instanceId);
         }
 
         if (success)
@@ -264,16 +271,46 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
         }
     }
 
-    public void Setup(CardData data)
+    public void Setup(CardData data, int id = 0)
     {
         cardData = data;
+        instanceId = id;
         if (cardNameText != null) cardNameText.text = data.cardName;
         if (descriptionText != null) descriptionText.text = data.description;
         if (manaCostText != null) manaCostText.text = data.manaCost.ToString();
 
         if (rarityBorder != null)
             rarityBorder.color = data.GetRarityColor();
+
+        // 카드별 일러스트 — sprite 있으면 표시, 없으면 숨김. 신규 카드 추가는 SO 슬롯에 드래그만.
+        if (cardArtImage != null)
+        {
+            if (data.cardImage != null)
+            {
+                cardArtImage.sprite = data.cardImage;
+                cardArtImage.enabled = true;
+            }
+            else
+            {
+                cardArtImage.enabled = false;
+            }
+        }
+
+        // 카드별 식별 아이콘 (공격=주먹, 방어=방패 등). 없으면 숨김.
+        if (cardIconImage != null)
+        {
+            if (data.cardIcon != null)
+            {
+                cardIconImage.sprite = data.cardIcon;
+                cardIconImage.enabled = true;
+            }
+            else
+            {
+                cardIconImage.enabled = false;
+            }
+        }
     }
 
     public CardData GetCardData() => cardData;
+    public int GetInstanceId() => instanceId;
 }

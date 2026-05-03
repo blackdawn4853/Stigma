@@ -35,19 +35,21 @@ public class PlayerHand : MonoBehaviour
         }
         cardUIList.Clear();
 
-        // BattleManager 손패 기준으로 다시 생성
-        foreach (CardData cardData in BattleManager.Instance.hand)
+        // BattleManager 손패 기준으로 다시 생성 — handCardIds 와 병렬 인덱스로 인스턴스 ID 동행
+        var bm = BattleManager.Instance;
+        for (int i = 0; i < bm.hand.Count; i++)
         {
-            SpawnCard(cardData);
+            int id = i < bm.handCardIds.Count ? bm.handCardIds[i] : 0;
+            SpawnCard(bm.hand[i], id);
         }
     }
 
     // 카드 UI 생성
-    void SpawnCard(CardData cardData)
+    void SpawnCard(CardData cardData, int instanceId)
     {
         GameObject cardObj = Instantiate(cardPrefab, handTransform);
         CardUI cardUI = cardObj.GetComponent<CardUI>();
-        cardUI.Setup(cardData);
+        cardUI.Setup(cardData, instanceId);
         cardUIList.Add(cardUI);
     }
 

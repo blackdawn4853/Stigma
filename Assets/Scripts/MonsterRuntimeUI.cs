@@ -293,6 +293,23 @@ public class MonsterRuntimeUI : MonoBehaviour
             intentRoot.SetActive(false);
             return;
         }
+
+        // 보스 AI 가 있으면 자체 인텐트 텍스트/아이콘 사용 (페이즈/조건부 데미지/개안 등 반영)
+        if (monster.bossAI != null)
+        {
+            string text = monster.bossAI.GetIntentText(monster);
+            if (string.IsNullOrEmpty(text))
+            {
+                intentRoot.SetActive(false);
+                return;
+            }
+            intentRoot.SetActive(true);
+            if (intentText != null) intentText.text = text;
+            if (intentTurnText != null) intentTurnText.text = "";
+            SetIntentIcon(monster.bossAI.GetIntentIcon(monster), monster.bossAI.GetIntentColor(monster));
+            return;
+        }
+
         var action = monster.nextAction;
         if (action == null)
         {

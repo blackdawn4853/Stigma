@@ -86,7 +86,6 @@ public class GazeEffectManager : MonoBehaviour
     private bool abyssalGrimoirePenaltyTriggeredThisTurn;
     private bool tornMomentFirstCardConsumed;
     private bool abyssalGrimoireFirstUsed;
-    private CardData gapVisionDiscountCard;
     private int consecutiveTurnsWithoutKill;
 
     // ─── 100 트리거 상태 ─────────────────────────────────────────────
@@ -99,6 +98,11 @@ public class GazeEffectManager : MonoBehaviour
     private bool currentTurnNonForbiddenCostIncrease;
     private HashSet<CardData> outerGodFreeCards = new HashSet<CardData>();
     private CardData hiddenTextCard;
+
+    // 인스턴스 단위 비용 모디파이어 (id → 비용 델타).
+    // 같은 SO 가 여러 장 있을 때 정확한 카드만 타겟팅 (예: 40-4 틈새 시야).
+    // 매 턴 종료 / 전투 종료 시 비워진다. CardData 자체는 절대 변경하지 않는다.
+    private Dictionary<int, int> turnCostModifiers = new Dictionary<int, int>();
 
     // ─── 미션 (100-4) ────────────────────────────────────────────────
     public enum MissionType { DealDamage, UseCards, GetDefense, UseForbidden }
@@ -195,6 +199,8 @@ public class GazeEffectManager : MonoBehaviour
         missionActive = false;
         if (missionPanel != null) missionPanel.SetActive(false);
 
+        ClearTurnCostModifiers("전투 시작");
+
         // 20-2 예민한 직감: 전투 시작 추가 드로우
         if (IsActive(GazeEffectType.SharpIntuition) && BattleManager.Instance != null)
             BattleManager.Instance.DrawCards(sharpIntuitionExtraDraw);
@@ -260,11 +266,13 @@ public class GazeEffectManager : MonoBehaviour
         else
             hiddenTextCard = null;
 
-        // 40-4 틈새 시야: 첫 드로우 카드 비용 -1
-        if (IsActive(GazeEffectType.GapVision) && bm.hand.Count > 0)
-            gapVisionDiscountCard = bm.hand[0];
-        else
-            gapVisionDiscountCard = null;
+        // 40-4 틈새 시야: 첫 드로우 카드 비용 -1 (인스턴스 ID 기반 — 중복 SO 영향 없음)
+        if (IsActive(GazeEffectType.GapVision) && bm.gazeLevel >= 40 && bm.handCardIds.Count > 0)
+        {
+            int firstId = bm.handCardIds[0];
+            CardData firstCard = bm.hand[0];
+            ApplyTurnCostModifier(firstId, -gapVisionCostReduction, "틈새 시야", firstCard);
+        }
 
         // 80-1 외신의 강림: 상단 5장에 크툴루 없으면 1장 교체
         if (IsActive(GazeEffectType.OuterGodDescend80) && bm.gazeLevel >= 80)
@@ -343,6 +351,9 @@ public class GazeEffectManager : MonoBehaviour
 
         // 100-1 무료 카드 만료
         outerGodFreeCards.Clear();
+
+        // 인스턴스 단위 비용 모디파이어 만료 (40-4 등) — 매 턴 클리어
+        ClearTurnCostModifiers("턴 종료");
 
         // 처치 누적 카운트 (한 마리라도 살아있으면 처치 실패로 간주)
         if (bm.AnyMonsterAlive)
@@ -432,7 +443,9 @@ public class GazeEffectManager : MonoBehaviour
     // ────────────────────────────────────────────────────────────────
     // 비용 / 데미지 / 방어 모디파이어
     // ────────────────────────────────────────────────────────────────
-    public int GetEffectiveCost(CardData card)
+    // 카드 비용 계산. instanceId 는 BattleManager.handCardIds 의 값 (0 = 미지정).
+    // 같은 SO 가 여러 장 있는 경우 인스턴스 단위 모디파이어 (40-4 등) 가 정확한 카드만 타겟팅.
+    public int GetEffectiveCost(CardData card, int instanceId = 0)
     {
         if (card == null) return 0;
         int cost = card.manaCost;
@@ -441,26 +454,54 @@ public class GazeEffectManager : MonoBehaviour
 
         bool isForbidden = card.cardType == CardData.CardType.Forbidden;
 
-        // 80-2 찢긴 찰나: 첫 카드 무료
+        // 80-2 찢긴 찰나: 첫 카드 무료 (어떤 카드든)
         if (IsActive(GazeEffectType.TornMoment) && BattleManager.Instance.gazeLevel >= 80
             && !tornMomentFirstCardConsumed)
             return 0;
 
-        // 40-1 심연의 독본: 첫 크툴루 -1
+        // 40-1 심연의 독본: 첫 크툴루 -1 (첫 사용 플래그 기반)
         if (IsActive(GazeEffectType.AbyssalGrimoire) && BattleManager.Instance.gazeLevel >= 40
             && isForbidden && !abyssalGrimoireFirstUsed)
             cost -= abyssalGrimoireCostReduction;
 
-        // 40-4 틈새 시야: 첫 드로우 카드 -1
-        if (IsActive(GazeEffectType.GapVision) && BattleManager.Instance.gazeLevel >= 40
-            && card == gapVisionDiscountCard)
-            cost -= gapVisionCostReduction;
+        // 인스턴스 단위 모디파이어 (40-4 틈새 시야 등 — 특정 카드 인스턴스만 영향)
+        if (instanceId > 0 && turnCostModifiers.TryGetValue(instanceId, out int delta))
+            cost += delta;
 
-        // 100-1 외신의 강림 디버프 (다음 턴): 비크툴루 +1
+        // 100-1 외신의 강림 디버프: 비크툴루 +1 (이번 턴 손패 전체)
         if (currentTurnNonForbiddenCostIncrease && !isForbidden)
             cost += 1;
 
         return Mathf.Max(0, cost);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 인스턴스 단위 비용 모디파이어 (CardData 자체는 절대 변경하지 않음)
+    // ────────────────────────────────────────────────────────────────
+    public void ApplyTurnCostModifier(int instanceId, int delta, string source, CardData cardForLog = null)
+    {
+        if (instanceId <= 0 || delta == 0) return;
+        turnCostModifiers.TryGetValue(instanceId, out int existing);
+        int newDelta = existing + delta;
+        turnCostModifiers[instanceId] = newDelta;
+
+        if (cardForLog != null)
+        {
+            int from = cardForLog.manaCost + existing;
+            int to = Mathf.Max(0, cardForLog.manaCost + newDelta);
+            Debug.Log($"[{source}] 카드 [{cardForLog.cardName}] 비용 {from} → {to}");
+        }
+        else
+        {
+            Debug.Log($"[{source}] 인스턴스 {instanceId} 비용 모디파이어 {delta:+#;-#;0}");
+        }
+    }
+
+    public void ClearTurnCostModifiers(string reason = "턴 종료")
+    {
+        if (turnCostModifiers.Count == 0) return;
+        Debug.Log($"[비용 모디파이어 제거] {reason} ({turnCostModifiers.Count}건)");
+        turnCostModifiers.Clear();
     }
 
     public int GetFlatDamageBonus(CardData card, Monster target = null)
@@ -708,7 +749,7 @@ public class GazeEffectManager : MonoBehaviour
 
         foreach (var c in sources)
         {
-            bm.hand.Add(c);
+            bm.AddToHandWithId(c);
             outerGodFreeCards.Add(c);
         }
 
@@ -777,7 +818,7 @@ public class GazeEffectManager : MonoBehaviour
             if (forbiddenCardPool != null && forbiddenCardPool.Length > 0)
             {
                 CardData reward = forbiddenCardPool[Random.Range(0, forbiddenCardPool.Length)];
-                bm.hand.Add(reward);
+                bm.AddToHandWithId(reward);
                 outerGodFreeCards.Add(reward);
                 if (PlayerHand.Instance != null) PlayerHand.Instance.RefreshHand();
             }

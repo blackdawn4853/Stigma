@@ -13,7 +13,12 @@
       "mcp__unity-mcp__refresh_unity",
       "mcp__unity-mcp__manage_asset",
       "mcp__unity-mcp__manage_components",
-      "mcp__unity-mcp__manage_prefabs"
+      "mcp__unity-mcp__manage_prefabs",
+      "mcp__unity-mcp__manage_scriptable_object",
+      "Read(//tmp/**)",
+      "Bash(break)",
+      "Bash(xargs -I {} grep -l \"guid\" {})",
+      "Bash(xargs -I {} grep \"^guid:\" {})"
     ]
   }
 }

@@ -1,33 +1,55 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections.Generic;
+using System.Text;
 
-// 마우스 위치를 따라가며 버프/디버프 설명을 띄우는 단일 툴팁.
-// 첫 호출 시 별도 ScreenSpaceOverlay 캔버스를 만들어 최상위에 그린다.
+// 마우스 위치를 따라가며 한 대상(플레이어/몬스터)이 가진 모든 버프/디버프 설명을
+// 한 패널에 통합 표시하는 단일 툴팁. 슬더스 스타일.
+//
+// StatusIconBar 가 자기 lastEntries 를 통째로 넘겨주면 그대로 표시한다.
+// 어느 아이콘에 호버해도 같은 패널이 같은 내용으로 뜬다.
 public class StatusTooltip : MonoBehaviour
 {
     private static StatusTooltip instance;
 
-    private RectTransform panelRt;
-    private TextMeshProUGUI titleText;
-    private TextMeshProUGUI bodyText;
-
-    public static void Show(StatusType type, int value, int turns)
+    [System.Serializable]
+    public struct Entry
     {
+        public StatusType type;
+        public int value;
+        public int turns;
+    }
+
+    private RectTransform panelRt;
+    private TextMeshProUGUI bodyText;
+    private static readonly StringBuilder sb = new StringBuilder(256);
+
+    public static void Show(List<Entry> entries)
+    {
+        if (entries == null || entries.Count == 0) { Hide(); return; }
+
         var inst = GetOrCreate();
         if (inst == null) return;
 
-        var info = StatusInfo.Get(type);
-        inst.titleText.text = info.displayName;
-        inst.titleText.color = info.tintColor;
+        sb.Length = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var e = entries[i];
+            var info = StatusInfo.Get(e.type);
+            string hex = ColorUtility.ToHtmlStringRGB(info.tintColor);
 
-        string body = info.description;
-        if (value != 0)
-            body += $"\n수치: {(value > 0 ? "+" : "")}{value}";
-        if (turns > 0)
-            body += $"\n남은 턴: {turns}";
-        inst.bodyText.text = body;
+            sb.Append("<color=#").Append(hex).Append("><b>").Append(info.displayName).Append("</b></color>");
+            if (e.value != 0)
+                sb.Append(' ').Append(e.value > 0 ? "+" : "").Append(e.value);
+            if (e.turns > 0)
+                sb.Append(" (").Append(e.turns).Append("턴)");
+            sb.Append('\n');
+            sb.Append("<size=85%><color=#E0E0E0>").Append(info.description).Append("</color></size>");
+            if (i < entries.Count - 1) sb.Append("\n\n");
+        }
 
+        inst.bodyText.text = sb.ToString();
         inst.gameObject.SetActive(true);
         inst.UpdatePosition();
     }
@@ -47,7 +69,6 @@ public class StatusTooltip : MonoBehaviour
     {
         if (panelRt == null) return;
         Vector3 mouse = Input.mousePosition;
-        // 우상단으로 약간 띄움
         panelRt.position = new Vector3(mouse.x + 18f, mouse.y + 18f, 0f);
 
         // 화면 우측/상단 클리핑 방지
@@ -81,63 +102,39 @@ public class StatusTooltip : MonoBehaviour
 
     void Build()
     {
-        // 패널
+        // 패널 (ContentSizeFitter 로 본문 양만큼 세로 확장)
         GameObject panel = new GameObject("Panel", typeof(RectTransform), typeof(Image));
         panel.transform.SetParent(transform, false);
         panelRt = (RectTransform)panel.transform;
         panelRt.pivot = new Vector2(0f, 0f);
         panelRt.anchorMin = new Vector2(0f, 0f);
         panelRt.anchorMax = new Vector2(0f, 0f);
-        panelRt.sizeDelta = new Vector2(220f, 80f);
+        panelRt.sizeDelta = new Vector2(280f, 80f);
         var bg = panel.GetComponent<Image>();
-        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.92f);
+        bg.color = new Color(0.05f, 0.05f, 0.08f, 0.94f);
         bg.raycastTarget = false;
 
-        // 타이틀
-        GameObject t = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI));
-        t.transform.SetParent(panelRt, false);
-        var tRt = (RectTransform)t.transform;
-        tRt.anchorMin = new Vector2(0f, 1f);
-        tRt.anchorMax = new Vector2(1f, 1f);
-        tRt.pivot = new Vector2(0f, 1f);
-        tRt.offsetMin = new Vector2(8f, -28f);
-        tRt.offsetMax = new Vector2(-8f, -4f);
-        titleText = t.GetComponent<TextMeshProUGUI>();
-        titleText.fontSize = 16;
-        titleText.fontStyle = FontStyles.Bold;
-        titleText.alignment = TextAlignmentOptions.Left;
-        titleText.raycastTarget = false;
-
-        // 본문
-        GameObject b = new GameObject("Body", typeof(RectTransform), typeof(TextMeshProUGUI));
-        b.transform.SetParent(panelRt, false);
-        var bRt = (RectTransform)b.transform;
-        bRt.anchorMin = new Vector2(0f, 0f);
-        bRt.anchorMax = new Vector2(1f, 1f);
-        bRt.pivot = new Vector2(0f, 1f);
-        bRt.offsetMin = new Vector2(8f, 4f);
-        bRt.offsetMax = new Vector2(-8f, -32f);
-        bodyText = b.GetComponent<TextMeshProUGUI>();
-        bodyText.fontSize = 13;
-        bodyText.color = new Color(0.92f, 0.92f, 0.92f);
-        bodyText.alignment = TextAlignmentOptions.TopLeft;
-        bodyText.raycastTarget = false;
-        bodyText.textWrappingMode = TextWrappingModes.Normal;
-
-        // 가변 높이 — ContentSizeFitter 로 본문 양만큼 확장
         var fitter = panel.AddComponent<ContentSizeFitter>();
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         var vlg = panel.AddComponent<VerticalLayoutGroup>();
-        vlg.padding = new RectOffset(8, 8, 6, 6);
-        vlg.spacing = 4f;
+        vlg.padding = new RectOffset(10, 10, 8, 8);
+        vlg.spacing = 0f;
         vlg.childAlignment = TextAnchor.UpperLeft;
         vlg.childControlHeight = true;
         vlg.childControlWidth = true;
         vlg.childForceExpandHeight = false;
         vlg.childForceExpandWidth = true;
 
-        // 두 텍스트를 자식으로 직접 배치하면 VerticalLayoutGroup 가 처리
-        // (위에서 anchor/offset 설정한 부분은 VerticalLayoutGroup 이 덮어씀)
+        // 본문 (모든 엔트리 통합 텍스트, 리치 텍스트로 색/크기 분리)
+        GameObject b = new GameObject("Body", typeof(RectTransform), typeof(TextMeshProUGUI));
+        b.transform.SetParent(panelRt, false);
+        bodyText = b.GetComponent<TextMeshProUGUI>();
+        bodyText.fontSize = 14;
+        bodyText.color = Color.white;
+        bodyText.alignment = TextAlignmentOptions.TopLeft;
+        bodyText.raycastTarget = false;
+        bodyText.textWrappingMode = TextWrappingModes.Normal;
+        bodyText.richText = true;
     }
 }

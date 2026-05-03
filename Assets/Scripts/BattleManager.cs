@@ -12,8 +12,18 @@ public class BattleManager : MonoBehaviour
 
     [Header("인카운터 동적 스폰 (NextEncounter 가 있으면 씬 배치 무시)")]
     public GameObject monsterPrefab;
-    public Transform encounterAnchor; // 비워두면 (0, -1, 0) 기준
-    public Vector3 defaultAnchorPosition = new Vector3(5f, -1f, 0f);
+    public Transform encounterAnchor; // 비워두면 defaultAnchorPosition 사용
+    public Vector3 defaultAnchorPosition = new Vector3(5f, -3f, 0f);
+    [Tooltip("다중 몬스터 자동 가로 간격 (anchor 중심으로 좌우 분산)")]
+    public float monsterSpacing = 2f;
+    [Tooltip("몬스터 1마리 추가될 때마다 플레이어를 이만큼 왼쪽으로 밀어 공간 확보 (단독 시 0)")]
+    public float playerLeftShiftPerExtraMonster = 0.7f;
+
+    [Header("바닥 정렬 (카메라 뷰 기준 발 위치 자동 보정)")]
+    [Tooltip("켜면 카메라 줌이 바뀌거나 몬스터 sprite 크기가 달라도 모두 같은 화면 바닥 라인에 발 정렬")]
+    public bool autoAlignToFloor = true;
+    [Tooltip("화면 하단에서 위로 얼마나 떨어진 지점을 발 라인으로 잡을지 (0.2 = 화면 하단 20% 지점)")]
+    [Range(0f, 0.5f)] public float floorPaddingFraction = 0.2f;
 
     [Header("카메라 프레이밍 (몬스터 수에 따라 직교 사이즈 조정)")]
     public Camera battleCamera;
@@ -42,6 +52,11 @@ public class BattleManager : MonoBehaviour
     public List<CardData> hand = new List<CardData>();
     public List<CardData> discardPile = new List<CardData>();
 
+    // 손패 카드별 인스턴스 ID (hand 와 병렬). 같은 CardData SO 가 여러 장 있어도 구분 가능.
+    // 인스턴스 단위 비용 모디파이어 (40-4 틈새 시야 등) 가 정확한 카드만 타겟팅하기 위해 사용.
+    public List<int> handCardIds = new List<int>();
+    private int nextCardInstanceId = 1;
+
     [Header("테스트용 시작 카드")]
     public CardData[] startingCards;
 
@@ -51,6 +66,8 @@ public class BattleManager : MonoBehaviour
     public HitEffect playerHitEffect;
 
     private bool introComplete = false;
+    private Vector3 playerBasePosition;
+    private bool playerBasePositionCached = false;
     private List<string> gazeChangeLog = new List<string>();
     private int nextTurnManaReduction = 0;
     private int regenHealAmount = 5;
@@ -131,19 +148,50 @@ public class BattleManager : MonoBehaviour
             return;
         }
         Vector3 anchor = encounterAnchor != null ? encounterAnchor.position : defaultAnchorPosition;
+
+        // 유효 엔트리 카운트 (자동 가로 분산용)
+        int validCount = 0;
+        for (int i = 0; i < encounter.entries.Length; i++)
+            if (encounter.entries[i] != null && encounter.entries[i].data != null) validCount++;
+
+        int idx = 0;
         for (int i = 0; i < encounter.entries.Length; i++)
         {
             var entry = encounter.entries[i];
             if (entry == null || entry.data == null) continue;
-            Vector3 pos = anchor + new Vector3(entry.positionOffset.x, entry.positionOffset.y, 0f);
+
+            // 자동 가로 정렬: anchor 중심으로 좌우 균등 분산. (count-1)/2 를 빼서 가운데 정렬.
+            // 단독이면 autoX=0, 2마리면 ±spacing/2, 3마리면 -spacing/0/+spacing 등.
+            float autoX = (idx - (validCount - 1) * 0.5f) * monsterSpacing;
+            // entry.positionOffset 는 인카운터별 미세 조정용 (자동 정렬 위에 더해짐)
+            Vector3 pos = anchor
+                        + new Vector3(autoX, 0f, 0f)
+                        + new Vector3(entry.positionOffset.x, entry.positionOffset.y, 0f);
+            idx++;
+
             GameObject go = Instantiate(monsterPrefab, pos, Quaternion.identity);
             go.name = entry.data.monsterName;
             var mono = go.GetComponent<Monster>();
             if (mono == null) mono = go.AddComponent<Monster>();
             mono.data = entry.data;
+            AttachBossAI(go, entry.data);
             monsters.Add(mono);
         }
-        Debug.Log($"[BattleManager] 인카운터 스폰: {encounter.encounterName} ({monsters.Count}마리)");
+        Debug.Log($"[BattleManager] 인카운터 스폰: {encounter.encounterName} ({monsters.Count}마리, anchor={anchor}, spacing={monsterSpacing})");
+    }
+
+    // MonsterData.bossAIType 에 따라 해당 컴포넌트를 부착. 신규 보스 추가 시 case 만 늘리면 됨.
+    void AttachBossAI(GameObject go, MonsterData data)
+    {
+        if (data == null) return;
+        switch (data.bossAIType)
+        {
+            case MonsterData.BossAIType.None:
+                return;
+            case MonsterData.BossAIType.Shoggoth:
+                if (go.GetComponent<ShoggothAI>() == null) go.AddComponent<ShoggothAI>();
+                break;
+        }
     }
 
     void Start()
@@ -176,23 +224,30 @@ public class BattleManager : MonoBehaviour
         regenTurnsRemaining = 0;
         gazeChangeLog.Clear();
 
-        // 몬스터 초기화 (사망 상태 GameObject 도 활성화 시 부활)
+        // 몬스터 초기화 — sprite override / scale 적용 (위치는 아직 spawn 그대로)
         for (int i = 0; i < monsters.Count; i++)
         {
             if (monsters[i] == null) continue;
             if (!monsters[i].gameObject.activeSelf) monsters[i].gameObject.SetActive(true);
-            monsters[i].CacheFinalPosition();
             monsters[i].InitializeForBattle();
         }
 
         ApplyCameraFraming();
+        ApplyPlayerShift();
+        AlignAllToFloor();
+
+        // 모든 위치 보정 끝난 후 최종 위치 캐시 (인트로 코루틴이 이 위치로 슬라이드 인)
+        for (int i = 0; i < monsters.Count; i++)
+            if (monsters[i] != null) monsters[i].CacheFinalPosition();
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.InitializeBattle();
 
         deck.Clear();
         hand.Clear();
+        handCardIds.Clear();
         discardPile.Clear();
+        nextCardInstanceId = 1;
 
         if (GameManager.Instance != null && GameManager.Instance.playerDeck.Count > 0)
         {
@@ -277,6 +332,67 @@ public class BattleManager : MonoBehaviour
         Debug.Log("인트로 완료!");
     }
 
+    // 몬스터 수에 따라 플레이어 위치를 왼쪽으로 밀어 공간 확보.
+    // 첫 호출 시 인스펙터/씬에 배치된 위치를 base 로 캐시 → 이후엔 base 기준으로 매번 재계산.
+    void ApplyPlayerShift()
+    {
+        if (playerObject == null) return;
+        if (!playerBasePositionCached)
+        {
+            playerBasePosition = playerObject.transform.position;
+            playerBasePositionCached = true;
+        }
+
+        int count = 0;
+        for (int i = 0; i < monsters.Count; i++)
+            if (monsters[i] != null) count++;
+        float shift = Mathf.Max(0, count - 1) * playerLeftShiftPerExtraMonster;
+
+        playerObject.transform.position = new Vector3(
+            playerBasePosition.x - shift,
+            playerBasePosition.y,
+            playerBasePosition.z);
+    }
+
+    // 카메라 뷰 기준 "발 라인" Y 좌표. 카메라 ortho 사이즈가 바뀌면 자동으로 화면 하단 비율에 맞춰 이동.
+    float ComputeFloorY()
+    {
+        var cam = battleCamera != null ? battleCamera : Camera.main;
+        if (cam == null || !cam.orthographic) return 0f;
+        // 화면 바닥 = cam.y - ortho. 패딩만큼 위로 올림.
+        return cam.transform.position.y + cam.orthographicSize * (2f * floorPaddingFraction - 1f);
+    }
+
+    void AlignAllToFloor()
+    {
+        if (!autoAlignToFloor) return;
+        float floorY = ComputeFloorY();
+
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null) continue;
+            AlignTransformToFloor(monsters[i].transform, floorY);
+        }
+        if (playerObject != null)
+            AlignTransformToFloor(playerObject.transform, floorY);
+
+        Debug.Log($"[BattleManager] floor 정렬 — floorY={floorY:F2} (cam ortho={ (battleCamera != null ? battleCamera : Camera.main)?.orthographicSize ?? 0f:F2})");
+    }
+
+    // 대상 Transform 의 자식 SpriteRenderer 의 월드 bounds 의 바닥(min.y)이 floorY 가 되도록 Y 만 평행이동.
+    // 스프라이트 크기/scale/pivot 무관 — 항상 발(스프라이트 바닥)이 floor 라인에 맞춰짐.
+    void AlignTransformToFloor(Transform t, float floorY)
+    {
+        var sr = t.GetComponentInChildren<SpriteRenderer>();
+        if (sr == null || sr.sprite == null) return;
+
+        Bounds b = sr.bounds; // world space, 현재 transform 반영됨
+        float currentBottom = b.min.y;
+        float delta = floorY - currentBottom;
+        Vector3 p = t.position;
+        t.position = new Vector3(p.x, p.y + delta, p.z);
+    }
+
     void ApplyCameraFraming()
     {
         if (battleCamera == null && autoFindBattleCamera) battleCamera = Camera.main;
@@ -333,11 +449,41 @@ public class BattleManager : MonoBehaviour
                 ReshuffleDeck();
             }
             hand.Add(deck[0]);
+            handCardIds.Add(nextCardInstanceId++);
             deck.RemoveAt(0);
         }
 
         if (PlayerHand.Instance != null) PlayerHand.Instance.RefreshHand();
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
+    }
+
+    // 외부에서 손패에 카드를 추가할 때 (외신의 강림, 미션 보상 등) — 인스턴스 ID 자동 부여.
+    // 반환값: 부여된 인스턴스 ID.
+    public int AddToHandWithId(CardData card)
+    {
+        if (card == null) return 0;
+        int id = nextCardInstanceId++;
+        hand.Add(card);
+        handCardIds.Add(id);
+        return id;
+    }
+
+    // 인스턴스 ID 우선 매칭 (같은 SO 중복 시 정확한 카드 식별), 0 이면 첫 매칭 fallback.
+    int FindHandIndex(CardData card, int instanceId)
+    {
+        if (instanceId > 0)
+        {
+            for (int i = 0; i < handCardIds.Count; i++)
+                if (handCardIds[i] == instanceId) return i;
+        }
+        return hand.IndexOf(card);
+    }
+
+    void RemoveFromHandAt(int index)
+    {
+        if (index < 0 || index >= hand.Count) return;
+        hand.RemoveAt(index);
+        if (index < handCardIds.Count) handCardIds.RemoveAt(index);
     }
 
     bool IsDrawCard(CardData card)
@@ -347,27 +493,28 @@ public class BattleManager : MonoBehaviour
                card.effectType == CardData.CardEffectType.DrawAndReduceMana;
     }
 
-    int GetCardCost(CardData card)
+    int GetCardCost(CardData card, int instanceId = 0)
     {
         return GazeEffectManager.Instance != null
-            ? GazeEffectManager.Instance.GetEffectiveCost(card)
+            ? GazeEffectManager.Instance.GetEffectiveCost(card, instanceId)
             : card.manaCost;
     }
 
-    public bool PlayCardOnMonster(CardData card, Monster target)
+    public bool PlayCardOnMonster(CardData card, Monster target, int instanceId = 0)
     {
         if (!introComplete) return false;
-        if (!hand.Contains(card)) return false;
+        int handIndex = FindHandIndex(card, instanceId);
+        if (handIndex < 0) return false;
         if (target == null || !target.IsAlive)
         {
             Debug.Log("유효한 몬스터 타겟이 아니야!");
             return false;
         }
-        int cost = GetCardCost(card);
+        int cost = GetCardCost(card, instanceId);
         if (currentMana < cost) { Debug.Log("마나가 부족해!"); return false; }
 
         currentMana -= cost;
-        hand.Remove(card);
+        RemoveFromHandAt(handIndex);
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.OnCardPlayed(card, true);
@@ -386,15 +533,16 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
-    public bool PlayCardOnField(CardData card)
+    public bool PlayCardOnField(CardData card, int instanceId = 0)
     {
         if (!introComplete) return false;
-        if (!hand.Contains(card)) return false;
-        int cost = GetCardCost(card);
+        int handIndex = FindHandIndex(card, instanceId);
+        if (handIndex < 0) return false;
+        int cost = GetCardCost(card, instanceId);
         if (currentMana < cost) { Debug.Log("마나가 부족해!"); return false; }
 
         currentMana -= cost;
-        hand.Remove(card);
+        RemoveFromHandAt(handIndex);
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.OnCardPlayed(card, false);
@@ -644,10 +792,18 @@ public class BattleManager : MonoBehaviour
         return GetCardShield(card, baseV);
     }
 
+    private bool isEndingTurn = false;
+
     public void EndTurn()
     {
         if (!introComplete) return;
+        if (isEndingTurn) return; // 보스 멀티히트 처리 중 더블클릭 방지
+        StartCoroutine(EndTurnRoutine());
+    }
 
+    IEnumerator EndTurnRoutine()
+    {
+        isEndingTurn = true;
         Debug.Log($"--- {turnCount}턴 종료 ---");
 
         if (regenTurnsRemaining > 0)
@@ -693,7 +849,7 @@ public class BattleManager : MonoBehaviour
         if (playerStrengthTurns == 0) playerStrength = 0;
         if (playerDebuffTurns > 0) playerDebuffTurns--;
 
-        MonsterTurn();
+        yield return StartCoroutine(MonsterTurnRoutine());
 
         // 플레이어 방어도 리셋 (이번 MonsterTurn 동안 방어 흡수에 쓰임)
         playerDefense = 0;
@@ -709,6 +865,7 @@ public class BattleManager : MonoBehaviour
 
         discardPile.AddRange(hand);
         hand.Clear();
+        handCardIds.Clear();
         DrawCards(5);
 
         if (GazeEffectManager.Instance != null)
@@ -717,16 +874,26 @@ public class BattleManager : MonoBehaviour
         if (BattleUI.Instance != null) BattleUI.Instance.UpdateUI();
         if (PlayerHand.Instance != null) PlayerHand.Instance.OnTurnEnd();
         RefreshAllIntents();
+        isEndingTurn = false;
     }
 
-    void MonsterTurn()
+    IEnumerator MonsterTurnRoutine()
     {
         for (int i = 0; i < monsters.Count; i++)
         {
             var m = monsters[i];
-            if (m == null || !m.IsAlive || m.nextAction == null) continue;
+            if (m == null || !m.IsAlive) continue;
             m.BeginTurn();
-            ExecuteMonsterAction(m);
+
+            if (m.bossAI != null)
+            {
+                yield return StartCoroutine(m.bossAI.ExecuteAction(m, this));
+            }
+            else
+            {
+                if (m.nextAction == null) continue;
+                ExecuteMonsterAction(m);
+            }
             if (playerCurrentHp <= 0) break;
         }
 
@@ -735,7 +902,8 @@ public class BattleManager : MonoBehaviour
         {
             var m = monsters[i];
             if (m == null || !m.IsAlive) continue;
-            m.nextAction = m.PickNextAction();
+            if (m.bossAI != null) m.bossAI.PrepareNextAction(m);
+            else m.nextAction = m.PickNextAction();
         }
     }
 
@@ -854,4 +1022,7 @@ public class BattleManager : MonoBehaviour
                 GameManager.Instance.GameOver();
         }
     }
+
+    // BossAI 등 외부에서 데미지 적용 후 사망 체크용
+    public void CheckPlayerDeathPublic() => CheckPlayerDeath();
 }

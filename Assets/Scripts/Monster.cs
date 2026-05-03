@@ -27,7 +27,11 @@ public class Monster : MonoBehaviour
     public int strength;
     public int strengthTurns;
     public int debuffTurns;
+    public int openEyeStacks; // 보스 자기 버프 — 공격마다 +1 데미지, 페이즈 변경에도 유지
     public MonsterData.MonsterAction nextAction;
+
+    // 보스/특수 AI (BattleManager.SpawnEncounter 가 부착)
+    public IBossAI bossAI;
 
     private int sequentialIndex;
     private Vector3 finalPosition;
@@ -42,6 +46,7 @@ public class Monster : MonoBehaviour
         if (hitEffect == null) hitEffect = GetComponent<HitEffect>();
         if (animator == null) animator = GetComponent<Animator>();
         if (gameObject.tag != "Monster") gameObject.tag = "Monster";
+        if (bossAI == null) bossAI = GetComponent<IBossAI>();
     }
 
     public void CacheFinalPosition()
@@ -65,8 +70,19 @@ public class Monster : MonoBehaviour
         strength = 0;
         strengthTurns = 0;
         debuffTurns = 0;
+        openEyeStacks = 0;
         sequentialIndex = 0;
-        nextAction = PickNextAction();
+
+        if (bossAI == null) bossAI = GetComponent<IBossAI>();
+        if (bossAI != null)
+        {
+            bossAI.OnBattleStart(this);
+            bossAI.PrepareNextAction(this);
+        }
+        else
+        {
+            nextAction = PickNextAction();
+        }
 
         EnsureRuntimeUI();
         if (runtimeUI != null) runtimeUI.RefreshAll();
@@ -75,12 +91,48 @@ public class Monster : MonoBehaviour
     public void ApplyVisualOverride()
     {
         if (data == null) return;
-        if (data.spriteOverride != null && spriteRenderer != null)
+
+        bool hasSpriteOverride = data.spriteOverride != null && spriteRenderer != null;
+        bool hasAnimOverride = data.animatorOverride != null && animator != null;
+
+        if (hasSpriteOverride)
+        {
             spriteRenderer.sprite = data.spriteOverride;
-        if (data.animatorOverride != null && animator != null)
+            // Animator 가 매 프레임 sprite 를 덮어쓰는 것 방지 — animatorOverride 가 없으면 정적 sprite 로 간주.
+            // (Animator 비활성 상태에서도 HitEffect 의 색상 플래시는 동작.)
+            if (animator != null && !hasAnimOverride) animator.enabled = false;
+
+            // Collider 를 새 sprite 의 native bounds 에 맞춰 보정 — 드래그 타게팅 영역 정상화.
+            var col = GetComponent<BoxCollider2D>();
+            if (col != null)
+            {
+                Bounds b = data.spriteOverride.bounds;
+                col.size = b.size;
+                col.offset = b.center;
+            }
+        }
+
+        if (spriteRenderer != null) spriteRenderer.flipX = data.flipSpriteX;
+
+        if (hasAnimOverride)
+        {
             animator.runtimeAnimatorController = data.animatorOverride;
+            animator.enabled = true;
+        }
+
         if (data.visualScale != Vector3.zero)
-            transform.localScale = data.visualScale;
+        {
+            // 프리팹 scale 의 부호(X flip 등) 보존하면서 magnitude 만 교체.
+            // 예: 프리팹 (-10, 10, 1) + visualScale (0.25, 0.25, 0.25) → (-0.25, 0.25, 0.25)
+            Vector3 cur = transform.localScale;
+            float sx = cur.x == 0f ? 1f : Mathf.Sign(cur.x);
+            float sy = cur.y == 0f ? 1f : Mathf.Sign(cur.y);
+            float sz = cur.z == 0f ? 1f : Mathf.Sign(cur.z);
+            transform.localScale = new Vector3(
+                sx * Mathf.Abs(data.visualScale.x),
+                sy * Mathf.Abs(data.visualScale.y),
+                sz * Mathf.Abs(data.visualScale.z));
+        }
     }
 
     public void EnsureRuntimeUI()

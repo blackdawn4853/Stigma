@@ -8,6 +8,7 @@ public enum StatusType
     Strength,
     Weak,
     Regen,
+    OpenEye,
 }
 
 public static class StatusInfo
@@ -40,6 +41,12 @@ public static class StatusInfo
                     displayName = "재생",
                     description = "턴 종료 시 체력을 일정량 회복합니다.",
                     tintColor = new Color(0.4f, 1f, 0.5f)
+                };
+            case StatusType.OpenEye:
+                return new Data {
+                    displayName = "개안",
+                    description = "공격 데미지가 중첩 수만큼 추가됩니다. (최대 3중첩, 페이즈 변경 시에도 유지)",
+                    tintColor = new Color(0.3f, 0.75f, 1f)
                 };
         }
         return new Data { displayName = "?", description = "", tintColor = Color.white };

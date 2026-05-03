@@ -12,6 +12,11 @@ public class BattleUI : MonoBehaviour
     public Slider playerHPBar;
     public TextMeshProUGUI playerHPText;
 
+    [Header("플레이어 UI 모드")]
+    [Tooltip("켜면 캔버스 UI 대신 플레이어 위에 떠다니는 월드 캔버스 사용 (몬스터와 동일 스타일).")]
+    public bool useWorldSpacePlayerUI = true;
+    private PlayerRuntimeUI playerRuntimeUI;
+
     [Header("플레이어 HP 바 스타일 (런타임 자동 생성, 몬스터와 동일 외관)")]
     public bool useMonsterStyleHpBar = true;
     public Color playerHpBackColor = new Color(0.1f, 0.1f, 0.1f, 0.85f);
@@ -96,9 +101,35 @@ public class BattleUI : MonoBehaviour
         if (gazeLogPanel != null)
             gazeLogPanel.SetActive(false);
 
-        BuildPlayerHpBar();
-        BuildPlayerDefenseBadge();
-        BuildPlayerStatusBar();
+        if (useWorldSpacePlayerUI)
+        {
+            // 월드 스페이스 모드: 캔버스 기반 플레이어 UI 비활성화 + 플레이어 따라가는 월드 캔버스 생성
+            HideScreenSpacePlayerUI();
+            SpawnPlayerRuntimeUI();
+        }
+        else
+        {
+            BuildPlayerHpBar();
+            BuildPlayerDefenseBadge();
+            BuildPlayerStatusBar();
+        }
+    }
+
+    void HideScreenSpacePlayerUI()
+    {
+        if (playerHPBar != null) playerHPBar.gameObject.SetActive(false);
+        if (playerHPText != null) playerHPText.gameObject.SetActive(false);
+        if (playerDefenseText != null) playerDefenseText.gameObject.SetActive(false);
+    }
+
+    void SpawnPlayerRuntimeUI()
+    {
+        if (playerRuntimeUI != null) return;
+        Transform t = null;
+        if (BattleManager.Instance != null && BattleManager.Instance.playerObject != null)
+            t = BattleManager.Instance.playerObject.transform;
+        if (t == null) return;
+        playerRuntimeUI = PlayerRuntimeUI.CreateFor(t);
     }
 
     // 몬스터 HP 바와 동일 구조: 다크 백드롭 + 빨간 슬라이더 + 중앙 HP 텍스트 오버레이.

@@ -5,7 +5,8 @@ using TMPro;
 using System.Collections;
 
 // 단일 버프/디버프 아이콘. StatusIconBar 가 동적으로 생성한다.
-// 마우스 호버 시 StatusTooltip 을 띄운다.
+// 마우스 호버 시 StatusTooltip 을 띄우는데, 자기 한 항목만이 아니라
+// 소속 바의 전체 엔트리를 통째로 보여준다 (슬더스 스타일 통합 패널).
 //
 // 구조:
 //   - 외부 (Root): HorizontalLayoutGroup 의 슬롯. 위치/크기 고정.
@@ -16,6 +17,8 @@ public class StatusIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public StatusType type;
     public int value;
     public int turns;
+
+    private StatusIconBar ownerBar;
 
     private Image bgImage;
     private Image fgImage;
@@ -28,7 +31,7 @@ public class StatusIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     private const float SlideDuration = 0.25f;
     private const float SlideOffsetY = 20f;
 
-    public static StatusIconUI Create(Transform parent, Vector2 size)
+    public static StatusIconUI Create(Transform parent, Vector2 size, StatusIconBar owner)
     {
         // 외부 슬롯 (HorizontalLayoutGroup 가 위치 결정)
         GameObject outer = new GameObject("StatusIcon", typeof(RectTransform));
@@ -37,6 +40,7 @@ public class StatusIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         outerRt.sizeDelta = size;
 
         var ui = outer.AddComponent<StatusIconUI>();
+        ui.ownerBar = owner;
 
         // 내부 컨테이너 (애니메이션 대상)
         GameObject inner = new GameObject("Content", typeof(RectTransform), typeof(Image));
@@ -109,6 +113,7 @@ public class StatusIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             bgImage.color = info.tintColor;
         }
 
+        // 표시 우선순위: 턴 수 > 수치(개안 스택 등). 둘 다 없으면 빈 텍스트.
         if (turn > 0) countText.text = turn.ToString();
         else if (val != 0) countText.text = (val > 0 ? "+" : "") + val.ToString();
         else countText.text = "";
@@ -147,7 +152,9 @@ public class StatusIconUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        StatusTooltip.Show(type, value, turns);
+        // 자기 항목만이 아니라 소속 바의 전체 엔트리를 한 패널에 표시.
+        if (ownerBar != null)
+            StatusTooltip.Show(ownerBar.GetTooltipEntries());
     }
 
     public void OnPointerExit(PointerEventData eventData)
