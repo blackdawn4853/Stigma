@@ -1241,6 +1241,7 @@ MonoBehaviour:
   playerMaxHp: 50
   playerCurrentHp: 50
   playerGold: 100
+  runGazeLevel: 0
   returningFromBattle: 0
   startNodeUnlocked: 0
   bossesDefeated: 0

@@ -154,6 +154,37 @@ public class GazeEffectManager : MonoBehaviour
 
     string Name(GazeEffectData e) => e != null ? e.displayName : "(none)";
 
+    // ─── 세이브/로드 — 런별 굴린 5개 활성 효과 보존 ────────────────
+    public List<string> GetActiveEffectNames()
+    {
+        var list = new List<string>();
+        list.Add(activeEffect20 != null ? activeEffect20.name : "");
+        list.Add(activeEffect40 != null ? activeEffect40.name : "");
+        list.Add(activeEffect60 != null ? activeEffect60.name : "");
+        list.Add(activeEffect80 != null ? activeEffect80.name : "");
+        list.Add(activeEffect100 != null ? activeEffect100.name : "");
+        return list;
+    }
+
+    public void RestoreActiveEffects(List<string> names)
+    {
+        if (names == null || names.Count < 5) return;
+        activeEffect20  = FindByName(pool20,  names[0]) ?? activeEffect20;
+        activeEffect40  = FindByName(pool40,  names[1]) ?? activeEffect40;
+        activeEffect60  = FindByName(pool60,  names[2]) ?? activeEffect60;
+        activeEffect80  = FindByName(pool80,  names[3]) ?? activeEffect80;
+        activeEffect100 = FindByName(pool100, names[4]) ?? activeEffect100;
+        Debug.Log($"[Gaze] 세이브 효과 복원: 20={Name(activeEffect20)} / 40={Name(activeEffect40)} / 60={Name(activeEffect60)} / 80={Name(activeEffect80)} / 100={Name(activeEffect100)}");
+    }
+
+    GazeEffectData FindByName(GazeEffectData[] pool, string assetName)
+    {
+        if (pool == null || string.IsNullOrEmpty(assetName)) return null;
+        foreach (var e in pool)
+            if (e != null && e.name == assetName) return e;
+        return null;
+    }
+
     public void ReplaceEffect(int threshold, GazeEffectData newEffect)
     {
         switch (threshold)
@@ -294,10 +325,7 @@ public class GazeEffectManager : MonoBehaviour
 
         // 40-2 몰아치기 디버프
         if (IsActive(GazeEffectType.Onslaught) && cardsPlayedThisTurn >= onslaughtPenaltyHpThreshold && bm.gazeLevel >= 40)
-        {
-            bm.playerCurrentHp -= onslaughtPenaltyHp;
-            if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
-        }
+            bm.DamagePlayer(onslaughtPenaltyHp);
 
         // 40-3 핏빛 호흡 디버프 (적 처치 실패가 누적되면 시선 +3)
         if (IsActive(GazeEffectType.BloodyBreath) && consecutiveTurnsWithoutKill >= bloodyBreathTurnThreshold && bm.gazeLevel >= 40)
@@ -325,10 +353,7 @@ public class GazeEffectManager : MonoBehaviour
 
         // 80-3 파멸 계약 디버프
         if (IsActive(GazeEffectType.DoomContract) && bm.turnCount >= doomContractTurnThreshold && bm.gazeLevel >= 80)
-        {
-            bm.playerCurrentHp -= doomContractPenaltyHp;
-            if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
-        }
+            bm.DamagePlayer(doomContractPenaltyHp);
 
         // 80-4 광기 순환 디버프
         if (IsActive(GazeEffectType.MadnessCycle) && !gazeIncreasedThisTurn && bm.gazeLevel >= 80)
@@ -704,10 +729,9 @@ public class GazeEffectManager : MonoBehaviour
         if (activeEffect100 == null)
         {
             // 폴백: 기존 저주 동작 (모든 살아있는 몬스터에 힘 +3 영구)
-            bm.playerCurrentHp -= 20;
+            bm.DamagePlayer(20);
             foreach (var mm in bm.GetAliveMonsters()) mm.ApplyStrength(3, 99);
             bm.gazeLevel = gazeResetOn100;
-            if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
             return;
         }
 
@@ -827,8 +851,7 @@ public class GazeEffectManager : MonoBehaviour
         }
         else
         {
-            bm.playerCurrentHp -= abyssalCommandFailHp;
-            if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
+            bm.DamagePlayer(abyssalCommandFailHp);
             Debug.Log("[Gaze100] 미션 실패!");
         }
 

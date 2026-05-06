@@ -13,6 +13,30 @@ public class SaveData
     public bool startNodeUnlocked;
     public int bossesDefeated;
     public List<string> deckCardNames = new List<string>();
+    public List<DrawLine> drawingLines = new List<DrawLine>();
+
+    // 맵 구조 (전체 노드 + 연결)
+    public int currentNodeLayer = -1;
+    public int currentNodeIndex = -1;
+    public int mapLayerCount = 0;
+    public List<SerializableNode> mapNodes = new List<SerializableNode>();
+
+    // 시선 효과 — 런별로 굴린 5개 (20/40/60/80/100 임계값에 매칭)
+    public List<string> activeGazeEffectNames = new List<string>();
+}
+
+// NodeData 의 직렬화 형태. 그래프 구조라 nextNodes 는 (layer, index) 키로 저장.
+[System.Serializable]
+public class SerializableNode
+{
+    public int nodeType;        // (int)NodeData.NodeType
+    public int layer;
+    public int index;
+    public Vector2 position;
+    public bool isVisited;
+    public bool isAccessible;
+    public List<int> nextLayers = new List<int>();
+    public List<int> nextIndices = new List<int>();
 }
 
 [System.Serializable]
@@ -50,6 +74,14 @@ public class GameManager : MonoBehaviour
 
     [Header("덱 관리")]
     public List<CardData> playerDeck = new List<CardData>();
+
+    [Header("노드맵 드로잉 (영구 저장)")]
+    [HideInInspector] public List<DrawLine> drawingLines = new List<DrawLine>();
+
+    // Load 직후 1프레임만 true — MapSceneManager 가 보고 맵 복원 분기 탐
+    [HideInInspector] public bool justLoadedFromSave = false;
+    [HideInInspector] public List<SerializableNode> pendingMapNodes;
+    [HideInInspector] public int pendingMapLayerCount;
 
     [Header("전체 카드 목록 (세이브/로드용)")]
     public CardData[] allCards;
@@ -107,6 +139,7 @@ public class GameManager : MonoBehaviour
         savedNodeStates.Clear();
         currentNodeLayer = -1;
         currentNodeIndex = -1;
+        drawingLines.Clear(); // 새 런 → 새 맵 → 드로잉 초기화
         SceneManager.LoadScene("NodeMap");
     }
 
@@ -210,9 +243,51 @@ public class GameManager : MonoBehaviour
         foreach (CardData card in playerDeck)
             data.deckCardNames.Add(card.cardName);
 
+        // 드로잉
+        data.drawingLines = drawingLines != null ? drawingLines : new List<DrawLine>();
+
+        // 맵 구조 (MapGenerator 가 layers 들고 있을 때만)
+        data.currentNodeLayer = currentNodeLayer;
+        data.currentNodeIndex = currentNodeIndex;
+        if (MapGenerator.Instance != null)
+        {
+            var layers = MapGenerator.Instance.GetLayers();
+            if (layers != null && layers.Count > 0)
+            {
+                data.mapLayerCount = layers.Count;
+                foreach (var layer in layers)
+                    foreach (var node in layer)
+                        data.mapNodes.Add(SerializeNode(node));
+            }
+        }
+
+        // 시선 효과 (런별 굴린 5개)
+        if (GazeEffectManager.Instance != null)
+            data.activeGazeEffectNames = GazeEffectManager.Instance.GetActiveEffectNames();
+
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(SavePath, json);
         Debug.Log($"세이브 완료");
+    }
+
+    SerializableNode SerializeNode(NodeData n)
+    {
+        var sn = new SerializableNode();
+        sn.nodeType = (int)n.nodeType;
+        sn.layer = n.layer;
+        sn.index = n.index;
+        sn.position = n.position;
+        sn.isVisited = n.isVisited;
+        sn.isAccessible = n.isAccessible;
+        if (n.nextNodes != null)
+        {
+            foreach (var next in n.nextNodes)
+            {
+                sn.nextLayers.Add(next.layer);
+                sn.nextIndices.Add(next.index);
+            }
+        }
+        return sn;
     }
 
     public bool HasSaveFile() => File.Exists(SavePath);
@@ -237,6 +312,31 @@ public class GameManager : MonoBehaviour
             CardData found = FindCardByName(cardName);
             if (found != null) playerDeck.Add(found);
         }
+
+        drawingLines = data.drawingLines != null ? data.drawingLines : new List<DrawLine>();
+
+        // 맵 상태 → MapSceneManager 가 NodeMap Start 에서 복원
+        currentNodeLayer = data.currentNodeLayer;
+        currentNodeIndex = data.currentNodeIndex;
+        pendingMapNodes = data.mapNodes;
+        pendingMapLayerCount = data.mapLayerCount;
+
+        // 시선 효과 복원 — GazeEffectManager 가 있으면 즉시 적용
+        if (GazeEffectManager.Instance != null && data.activeGazeEffectNames != null)
+            GazeEffectManager.Instance.RestoreActiveEffects(data.activeGazeEffectNames);
+    }
+
+    // MainMenu 의 Load 버튼이 호출 — Load + 컷씬 스킵 + NodeMap 직행.
+    public void LoadGameAndStart()
+    {
+        if (!HasSaveFile())
+        {
+            Debug.LogWarning("[GameManager] 세이브 파일 없음 — Load 무시");
+            return;
+        }
+        Load();
+        justLoadedFromSave = true;
+        SceneManager.LoadScene("NodeMap");
     }
 
     public void DeleteSave()

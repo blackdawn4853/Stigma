@@ -23,6 +23,7 @@ public class PlayerRuntimeUI : MonoBehaviour
     private Image hpFill;
     private TextMeshProUGUI hpText;
     private DefenseBadgeUI defenseBadge;
+    private BodyDefenseUI bodyDefense;
     private StatusIconBar statusBar;
 
     public static PlayerRuntimeUI CreateFor(Transform playerTransform)
@@ -56,6 +57,9 @@ public class PlayerRuntimeUI : MonoBehaviour
         BuildHpBar(rt);
         BuildDefenseBadge(rt);
         BuildStatusBar(rt);
+
+        // 방어도 — 캐릭터 몸에 큰 반투명 방패 오버레이 (자체 월드 캔버스, 작은 배지와 별도)
+        bodyDefense = BodyDefenseUI.CreateFor(target, new Vector3(0f, 0.9f, 0f));
     }
 
     void BuildHpBar(RectTransform parent)
@@ -163,6 +167,12 @@ public class PlayerRuntimeUI : MonoBehaviour
         if (hpText != null) hpText.text = $"{Mathf.Max(0, bm.playerCurrentHp)}/{bm.playerMaxHp}";
 
         if (defenseBadge != null) defenseBadge.SetValue(bm.playerDefense);
+        if (bodyDefense != null) bodyDefense.SetValue(bm.playerDefense);
         if (statusBar != null) statusBar.RefreshFromPlayer(bm);
+    }
+
+    void OnDestroy()
+    {
+        if (bodyDefense != null) Destroy(bodyDefense.gameObject);
     }
 }

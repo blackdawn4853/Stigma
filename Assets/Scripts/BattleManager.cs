@@ -199,6 +199,23 @@ public class BattleManager : MonoBehaviour
         InitializeBattlePublic();
     }
 
+    // 플레이어 데미지 적용 — HP 차감 + 히트 플래시 + 데미지 팝업 + (임계값 이상이면) 카메라 쉐이크.
+    // 모든 플레이어 피해는 이 헬퍼를 통해 들어와야 효과가 일관됨.
+    public void DamagePlayer(int amount)
+    {
+        if (amount <= 0) return;
+        playerCurrentHp -= amount;
+        if (playerHitEffect != null) playerHitEffect.PlayHit();
+
+        if (CombatEffectsManager.Instance != null)
+        {
+            Vector3 pos = playerObject != null ? playerObject.transform.position : Vector3.zero;
+            CombatEffectsManager.Instance.ShowDamagePopup(pos, amount);
+            if (amount >= CombatEffectsManager.Instance.shakeDamageThreshold)
+                CombatEffectsManager.Instance.ShakeCamera(amount);
+        }
+    }
+
     public void InitializeBattlePublic()
     {
         if (GameManager.Instance != null)
@@ -685,8 +702,7 @@ public class BattleManager : MonoBehaviour
             case CardData.CardEffectType.DamageSelfDamage:
                 damage = CalculateDamage(card.value, card, target);
                 actualDamage = ApplyDamageToMonster(damage, card, target);
-                playerCurrentHp -= card.value2;
-                if (playerHitEffect != null) playerHitEffect.PlayHit();
+                DamagePlayer(card.value2);
                 regenTurnsRemaining = card.value3;
                 Debug.Log($"{card.cardName} → {NameOf(target)} {actualDamage} 데미지, 자해 {card.value2}, {card.value3}턴 재생!");
                 CheckPlayerDeath();
@@ -814,9 +830,8 @@ public class BattleManager : MonoBehaviour
 
         if (usedForbiddenInCursedZone)
         {
-            playerCurrentHp -= 2;
+            DamagePlayer(2);
             usedForbiddenInCursedZone = false;
-            if (playerHitEffect != null) playerHitEffect.PlayHit();
             CheckPlayerDeath();
         }
 
@@ -831,11 +846,10 @@ public class BattleManager : MonoBehaviour
             }
             else
             {
-                playerCurrentHp -= 20;
+                DamagePlayer(20);
                 foreach (var m in GetAliveMonsters()) m.ApplyStrength(3, 99);
                 gazeLevel = gazeResetValue;
             }
-            if (playerHitEffect != null) playerHitEffect.PlayHit();
             CheckPlayerDeath();
         }
 
@@ -922,10 +936,7 @@ public class BattleManager : MonoBehaviour
                 playerDefense = Mathf.Max(0, playerDefense - damage);
 
                 if (actualDamage > 0)
-                {
-                    playerCurrentHp -= actualDamage;
-                    if (playerHitEffect != null) playerHitEffect.PlayHit();
-                }
+                    DamagePlayer(actualDamage);
                 CheckPlayerDeath();
                 break;
             }
@@ -947,10 +958,7 @@ public class BattleManager : MonoBehaviour
                 int actualDamage = Mathf.Max(0, damage - playerDefense);
                 playerDefense = Mathf.Max(0, playerDefense - damage);
                 if (actualDamage > 0)
-                {
-                    playerCurrentHp -= actualDamage;
-                    if (playerHitEffect != null) playerHitEffect.PlayHit();
-                }
+                    DamagePlayer(actualDamage);
                 playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
                 CheckPlayerDeath();
                 break;

@@ -27,6 +27,8 @@ public class MonsterRuntimeUI : MonoBehaviour
 
     // 방어도 배지 (HP바 좌측에 붙음)
     private DefenseBadgeUI defenseBadge;
+    // 방어도 — 몬스터 몸에 큰 반투명 방패 오버레이 (작은 배지와 별도)
+    private BodyDefenseUI bodyDefense;
 
     // 상태 아이콘 줄
     private StatusIconBar statusBar;
@@ -70,6 +72,9 @@ public class MonsterRuntimeUI : MonoBehaviour
         BuildDefenseBadge(rt);
         BuildStatusBar(rt);
         BuildIntent(rt);
+
+        // 방어도 — 몬스터 몸에 큰 반투명 방패 오버레이 (자체 월드 캔버스, 작은 배지와 별도)
+        bodyDefense = BodyDefenseUI.CreateFor(monster.transform, new Vector3(0f, 0.9f, 0f));
     }
 
     void BuildHpBar(RectTransform parent)
@@ -281,6 +286,7 @@ public class MonsterRuntimeUI : MonoBehaviour
         if (hpText != null) hpText.text = $"{Mathf.Max(0, monster.currentHp)}/{monster.data.maxHp}";
 
         if (defenseBadge != null) defenseBadge.SetValue(monster.defense);
+        if (bodyDefense != null) bodyDefense.SetValue(monster.defense);
         if (statusBar != null) statusBar.RefreshFromMonster(monster);
     }
 
@@ -383,9 +389,15 @@ public class MonsterRuntimeUI : MonoBehaviour
     {
         if (intentRoot != null) intentRoot.SetActive(false);
         if (defenseBadge != null) defenseBadge.SetValue(0);
+        if (bodyDefense != null) bodyDefense.SetValue(0);
         if (statusBar != null) statusBar.RefreshFromMonster(null);
         if (hpText != null) hpText.text = "0/0";
         if (hpBar != null) hpBar.value = 0f;
         Destroy(gameObject, 0.5f);
+    }
+
+    void OnDestroy()
+    {
+        if (bodyDefense != null) Destroy(bodyDefense.gameObject);
     }
 }

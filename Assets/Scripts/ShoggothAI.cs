@@ -205,10 +205,7 @@ public class ShoggothAI : MonoBehaviour, IBossAI
         bm.playerDefense = Mathf.Max(0, bm.playerDefense - damage);
 
         if (actualDamage > 0)
-        {
-            bm.playerCurrentHp -= actualDamage;
-            if (bm.playerHitEffect != null) bm.playerHitEffect.PlayHit();
-        }
+            bm.DamagePlayer(actualDamage);
         bm.CheckPlayerDeathPublic();
     }
 

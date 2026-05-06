@@ -173,7 +173,12 @@ public class Monster : MonoBehaviour
             defense = Mathf.Max(0, defense - damage);
         }
         currentHp -= actual;
-        if (actual > 0 && hitEffect != null) hitEffect.PlayHit();
+        if (actual > 0)
+        {
+            if (hitEffect != null) hitEffect.PlayHit();
+            if (CombatEffectsManager.Instance != null)
+                CombatEffectsManager.Instance.ShowDamagePopup(transform.position, actual);
+        }
         Debug.Log($"[{DisplayName}] 받은 데미지 {damage}, 방어도 {defenseAbsorbed} 차감, HP -{actual}");
         return actual;
     }
@@ -182,7 +187,12 @@ public class Monster : MonoBehaviour
     public void DirectDamage(int damage)
     {
         currentHp -= damage;
-        if (damage > 0 && hitEffect != null) hitEffect.PlayHit();
+        if (damage > 0)
+        {
+            if (hitEffect != null) hitEffect.PlayHit();
+            if (CombatEffectsManager.Instance != null)
+                CombatEffectsManager.Instance.ShowDamagePopup(transform.position, damage);
+        }
     }
 
     public void AddDefense(int amount) => defense += amount;

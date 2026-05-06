@@ -232,4 +232,64 @@ public class MapGenerator : MonoBehaviour
     public NodeData GetStartNode() => startNode;
     public NodeData GetBossNode() => bossNode;
     public List<List<NodeData>> GetLayers() => layers;
+    public bool HasLayers() => layers != null && layers.Count > 0;
+
+    // Load 직후 호출 — 직렬화된 노드 + 연결을 NodeData 그래프로 복원.
+    public void RestoreFromSerialized(List<SerializableNode> serialNodes, int layerCount)
+    {
+        layers.Clear();
+        startNode = null;
+        bossNode = null;
+
+        if (serialNodes == null || serialNodes.Count == 0 || layerCount <= 0)
+            return;
+
+        var byKey = new Dictionary<(int, int), NodeData>();
+        var grouped = new Dictionary<int, List<NodeData>>();
+
+        foreach (var sn in serialNodes)
+        {
+            NodeData nd = new NodeData();
+            nd.nodeType = (NodeData.NodeType)sn.nodeType;
+            nd.layer = sn.layer;
+            nd.index = sn.index;
+            nd.position = sn.position;
+            nd.isVisited = sn.isVisited;
+            nd.isAccessible = sn.isAccessible;
+            byKey[(sn.layer, sn.index)] = nd;
+            if (!grouped.ContainsKey(sn.layer)) grouped[sn.layer] = new List<NodeData>();
+            grouped[sn.layer].Add(nd);
+        }
+
+        for (int i = 0; i < layerCount; i++)
+        {
+            if (grouped.TryGetValue(i, out var ld))
+            {
+                ld.Sort((a, b) => a.index.CompareTo(b.index));
+                layers.Add(ld);
+            }
+            else layers.Add(new List<NodeData>());
+        }
+
+        // 연결 복원
+        foreach (var sn in serialNodes)
+        {
+            if (!byKey.TryGetValue((sn.layer, sn.index), out var nd)) continue;
+            int n = Mathf.Min(sn.nextLayers.Count, sn.nextIndices.Count);
+            for (int i = 0; i < n; i++)
+            {
+                if (byKey.TryGetValue((sn.nextLayers[i], sn.nextIndices[i]), out var target))
+                {
+                    nd.nextNodes.Add(target);
+                    target.prevNodes.Add(nd);
+                }
+            }
+        }
+
+        if (layers.Count > 0 && layers[0].Count > 0) startNode = layers[0][0];
+        if (layers.Count > 0 && layers[layers.Count - 1].Count > 0)
+            bossNode = layers[layers.Count - 1][0];
+
+        Debug.Log($"[MapGenerator] 세이브 복원 — {layers.Count} 층, 노드 {serialNodes.Count}개");
+    }
 }

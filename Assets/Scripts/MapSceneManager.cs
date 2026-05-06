@@ -37,11 +37,24 @@ public class MapSceneManager : MonoBehaviour
         nodeUIPositions.Clear();
         allNodeUIs.Clear();
 
-        // ✅ 복귀 시 기존 레이어 재사용, 아니면 새로 생성
-        if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
+        bool justLoaded = (GameManager.Instance != null && GameManager.Instance.justLoadedFromSave);
+
+        if (justLoaded)
+        {
+            // 세이브 직후 진입 — MapGenerator 에 직렬화된 맵 복원
+            MapGenerator.Instance.RestoreFromSerialized(
+                GameManager.Instance.pendingMapNodes,
+                GameManager.Instance.pendingMapLayerCount);
             currentLayers = MapGenerator.Instance.GetLayers();
+        }
+        else if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
+        {
+            currentLayers = MapGenerator.Instance.GetLayers();
+        }
         else
+        {
             currentLayers = MapGenerator.Instance.GenerateMap();
+        }
 
         float layerHeight = MapGenerator.Instance.layerHeight;
         int maxLayer = currentLayers.Count - 1;
@@ -67,7 +80,14 @@ public class MapSceneManager : MonoBehaviour
             foreach (var nodeData in layer)
                 SpawnNodeUI(nodeData, layerHeight);
 
-        if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
+        if (justLoaded)
+        {
+            // SerializableNode 에 visited/accessible 가 이미 들어있으므로 currentNode 만 복원
+            GameManager.Instance.justLoadedFromSave = false;
+            GameManager.Instance.pendingMapNodes = null;
+            RestoreCurrentNode();
+        }
+        else if (GameManager.Instance != null && GameManager.Instance.returningFromBattle)
         {
             GameManager.Instance.returningFromBattle = false;
             GameManager.Instance.RestoreMapState(currentLayers);

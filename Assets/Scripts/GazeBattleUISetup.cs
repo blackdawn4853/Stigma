@@ -11,14 +11,20 @@ public class GazeBattleUISetup : MonoBehaviour
     [Header("선택 (없으면 씬에서 첫 Canvas 자동 탐색)")]
     public Canvas targetCanvas;
 
-    [Header("호버 영역 배치")]
+    [Header("기능 토글")]
+    [Tooltip("호버 영역 + 툴팁 절차생성. 새 HUDManager 가 시선효과 호버를 담당하므로 기본 OFF.")]
+    public bool buildHoverRow = false;
+    [Tooltip("100-4 심연의 명령 미션 패널 절차생성 (HUD 와 무관 — 기본 ON).")]
+    public bool buildMissionPanel = true;
+
+    [Header("호버 영역 배치 (buildHoverRow=true 일 때만)")]
     public Vector2 hoverRowAnchoredPos = new Vector2(-220f, -120f); // 캔버스 우상단 기준
     public Vector2 hoverZoneSize = new Vector2(48f, 48f);
     public float hoverZoneSpacing = 12f;
     public Color zoneInactiveColor = new Color(0.2f, 0.2f, 0.2f, 0.85f);
     public Color zoneActiveColor = new Color(0.85f, 0.6f, 0.2f, 0.95f);
 
-    [Header("툴팁")]
+    [Header("툴팁 (buildHoverRow=true 일 때만)")]
     public Vector2 tooltipSize = new Vector2(360f, 160f);
     public Color tooltipBgColor = new Color(0f, 0f, 0f, 0.92f);
 
@@ -39,12 +45,18 @@ public class GazeBattleUISetup : MonoBehaviour
 
         TMP_FontAsset font = TMP_Settings.defaultFontAsset;
 
-        GameObject hoverRow = BuildHoverRow(font);
-        GameObject tooltip = BuildTooltip(font);
-        GameObject mission = BuildMissionPanel(font);
+        if (buildHoverRow)
+        {
+            GameObject hoverRow = BuildHoverRow(font);
+            GameObject tooltip = BuildTooltip(font);
+            WireGazeHoverUI(hoverRow, tooltip);
+        }
 
-        WireGazeHoverUI(hoverRow, tooltip);
-        WireGazeManager(mission);
+        if (buildMissionPanel)
+        {
+            GameObject mission = BuildMissionPanel(font);
+            WireGazeManager(mission);
+        }
     }
 
     // ─── 호버 영역 ────────────────────────────────────────────────
