@@ -19,6 +19,10 @@ public class BattleManager : MonoBehaviour
     [Tooltip("몬스터 1마리 추가될 때마다 플레이어를 이만큼 왼쪽으로 밀어 공간 확보 (단독 시 0)")]
     public float playerLeftShiftPerExtraMonster = 0.7f;
 
+    [Header("플레이어 위치 고정")]
+    [Tooltip("켜면 씬에 배치한 플레이어 위치를 그대로 유지 (몬스터 수에 따른 좌측 시프트 + 바닥 정렬을 플레이어에게는 적용하지 않음). 직접 위치 잡고 고정시킬 때 사용.")]
+    public bool lockPlayerPosition = true;
+
     [Header("바닥 정렬 (카메라 뷰 기준 발 위치 자동 보정)")]
     [Tooltip("켜면 카메라 줌이 바뀌거나 몬스터 sprite 크기가 달라도 모두 같은 화면 바닥 라인에 발 정렬")]
     public bool autoAlignToFloor = true;
@@ -199,7 +203,7 @@ public class BattleManager : MonoBehaviour
         InitializeBattlePublic();
     }
 
-    // 플레이어 데미지 적용 — HP 차감 + 히트 플래시 + 데미지 팝업 + (임계값 이상이면) 카메라 쉐이크.
+    // 플레이어 데미지 적용 — HP 차감 + 히트 플래시 + 데미지 팝업 + 다키스트 던전 스타일 클로즈업.
     // 모든 플레이어 피해는 이 헬퍼를 통해 들어와야 효과가 일관됨.
     public void DamagePlayer(int amount)
     {
@@ -211,8 +215,12 @@ public class BattleManager : MonoBehaviour
         {
             Vector3 pos = playerObject != null ? playerObject.transform.position : Vector3.zero;
             CombatEffectsManager.Instance.ShowDamagePopup(pos, amount);
-            if (amount >= CombatEffectsManager.Instance.shakeDamageThreshold)
-                CombatEffectsManager.Instance.ShakeCamera(amount);
+        }
+
+        if (CombatCameraEffect.Instance != null && playerObject != null)
+        {
+            var sr = playerObject.GetComponent<SpriteRenderer>();
+            CombatCameraEffect.Instance.PlayerHitCloseup(playerObject.transform, sr);
         }
     }
 
@@ -354,6 +362,7 @@ public class BattleManager : MonoBehaviour
     void ApplyPlayerShift()
     {
         if (playerObject == null) return;
+        if (lockPlayerPosition) return;
         if (!playerBasePositionCached)
         {
             playerBasePosition = playerObject.transform.position;
@@ -390,7 +399,7 @@ public class BattleManager : MonoBehaviour
             if (monsters[i] == null) continue;
             AlignTransformToFloor(monsters[i].transform, floorY);
         }
-        if (playerObject != null)
+        if (playerObject != null && !lockPlayerPosition)
             AlignTransformToFloor(playerObject.transform, floorY);
 
         Debug.Log($"[BattleManager] floor 정렬 — floorY={floorY:F2} (cam ortho={ (battleCamera != null ? battleCamera : Camera.main)?.orthographicSize ?? 0f:F2})");

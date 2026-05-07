@@ -178,6 +178,8 @@ public class Monster : MonoBehaviour
             if (hitEffect != null) hitEffect.PlayHit();
             if (CombatEffectsManager.Instance != null)
                 CombatEffectsManager.Instance.ShowDamagePopup(transform.position, actual);
+            if (CombatCameraEffect.Instance != null)
+                CombatCameraEffect.Instance.MonsterHitShake(actual);
         }
         Debug.Log($"[{DisplayName}] 받은 데미지 {damage}, 방어도 {defenseAbsorbed} 차감, HP -{actual}");
         return actual;
@@ -192,6 +194,8 @@ public class Monster : MonoBehaviour
             if (hitEffect != null) hitEffect.PlayHit();
             if (CombatEffectsManager.Instance != null)
                 CombatEffectsManager.Instance.ShowDamagePopup(transform.position, damage);
+            if (CombatCameraEffect.Instance != null)
+                CombatCameraEffect.Instance.MonsterHitShake(damage);
         }
     }
 

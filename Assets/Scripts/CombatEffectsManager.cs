@@ -3,22 +3,12 @@ using TMPro;
 using System.Collections;
 using UnityEngine.SceneManagement;
 
-// 전투 임팩트 효과 — 카메라 쉐이크 + 데미지 팝업.
+// 전투 데미지 팝업 매니저.
+// 카메라 쉐이크/클로즈업/레이어 쉐이크는 CombatCameraEffect 가 담당.
 // BattleScene 진입 시 자동 부트스트랩.
-// 호출: BattleManager.DamagePlayer / Monster.TakeDamage 에서 트리거.
 public class CombatEffectsManager : MonoBehaviour
 {
     public static CombatEffectsManager Instance { get; private set; }
-
-    [Header("카메라 쉐이크")]
-    [Tooltip("이 값 이상의 피해를 플레이어가 받으면 쉐이크 발동.")]
-    public int shakeDamageThreshold = 20;
-    [Tooltip("쉐이크 지속 시간 (초).")]
-    public float shakeDuration = 0.25f;
-    [Tooltip("데미지당 쉐이크 강도 (월드 단위). damage*이 값 = intensity.")]
-    public float shakeIntensityPerDamage = 0.025f;
-    [Tooltip("쉐이크 강도 상한.")]
-    public float maxShakeIntensity = 0.6f;
 
     [Header("데미지 팝업")]
     [Tooltip("팝업 폰트 크기 (월드 단위). 슬더스 느낌으로 크게.")]
@@ -45,12 +35,6 @@ public class CombatEffectsManager : MonoBehaviour
     public int popupSortingOrder = 200;
     [Tooltip("팝업 폰트 (비어있으면 TMP_Settings.defaultFontAsset 사용).")]
     public TMP_FontAsset popupFont;
-
-    // ─── 런타임 ──────────────────────────────────────────────────────
-    private Coroutine shakeCoroutine;
-    private Camera shakeCamera;
-    private Vector3 shakeOrigin;
-    private bool shakeOriginSaved;
 
     // ─── 부트스트랩 ──────────────────────────────────────────────────
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -83,57 +67,6 @@ public class CombatEffectsManager : MonoBehaviour
     void OnDestroy()
     {
         if (Instance == this) Instance = null;
-        // 쉐이크 중에 씬 전환되면 카메라 위치 복원
-        if (shakeCamera != null && shakeOriginSaved)
-            shakeCamera.transform.localPosition = shakeOrigin;
-    }
-
-    // ─── 카메라 쉐이크 ───────────────────────────────────────────────
-    public void ShakeCamera(int damage)
-    {
-        Camera cam = ResolveCamera();
-        if (cam == null) return;
-
-        // 기존 쉐이크 중이면 중단하고 origin 으로 복원 후 새로 시작
-        if (shakeCoroutine != null)
-        {
-            StopCoroutine(shakeCoroutine);
-            if (shakeOriginSaved && shakeCamera != null)
-                shakeCamera.transform.localPosition = shakeOrigin;
-        }
-
-        // 카메라 origin 저장 (최초 1회 또는 카메라 바뀐 경우)
-        if (!shakeOriginSaved || shakeCamera != cam)
-        {
-            shakeCamera = cam;
-            shakeOrigin = cam.transform.localPosition;
-            shakeOriginSaved = true;
-        }
-
-        float intensity = Mathf.Min(damage * shakeIntensityPerDamage, maxShakeIntensity);
-        shakeCoroutine = StartCoroutine(ShakeCoroutine(cam, intensity, shakeDuration));
-    }
-
-    Camera ResolveCamera()
-    {
-        if (BattleManager.Instance != null && BattleManager.Instance.battleCamera != null)
-            return BattleManager.Instance.battleCamera;
-        return Camera.main;
-    }
-
-    IEnumerator ShakeCoroutine(Camera cam, float intensity, float duration)
-    {
-        float elapsed = 0f;
-        while (elapsed < duration && cam != null)
-        {
-            elapsed += Time.deltaTime;
-            float falloff = 1f - (elapsed / duration);
-            Vector2 offset = Random.insideUnitCircle * intensity * falloff;
-            cam.transform.localPosition = shakeOrigin + new Vector3(offset.x, offset.y, 0f);
-            yield return null;
-        }
-        if (cam != null) cam.transform.localPosition = shakeOrigin;
-        shakeCoroutine = null;
     }
 
     // ─── 데미지 팝업 ─────────────────────────────────────────────────

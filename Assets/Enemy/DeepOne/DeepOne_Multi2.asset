@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f21d76b1a2622e24f8e53686eab9e8df, type: 3}
   m_Name: DeepOne_Multi2
   m_EditorClassIdentifier: Assembly-CSharp::MonsterData
-  monsterName: "딥원스 (다수2)"
+  monsterName: "\uB525\uC6D0\uC2A4 (\uB2E4\uC2182)"
   maxHp: 24
   monsterType: 0
   actionMode: 1
@@ -20,15 +20,17 @@ MonoBehaviour:
   - actionType: 1
     value: 5
     duration: 0
-    displayName: "경계태세"
+    displayName: "\uACBD\uACC4\uD0DC\uC138"
   - actionType: 4
     value: 6
     duration: 1
-    displayName: "급소타격"
+    displayName: "\uAE09\uC18C\uD0C0\uACA9"
   - actionType: 0
     value: 7
     duration: 0
-    displayName: "할퀴기"
-  spriteOverride: {fileID: 21300000, guid: f1206f4ade335ae4bad4648537e8122b, type: 3}
+    displayName: "\uD560\uD034\uAE30"
+  bossAIType: 0
+  spriteOverride: {fileID: 21300000, guid: 09cb50bf801c58b48b55c571b60efb33, type: 3}
+  animatorOverride: {fileID: 0}
   visualScale: {x: 0.25, y: 0.25, z: 0.25}
   flipSpriteX: 1
