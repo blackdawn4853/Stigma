@@ -29,20 +29,22 @@ public class FadeManager : MonoBehaviour
         FadeToScene("Cutscene");
     }
 
-    public void FadeToScene(string sceneName)
+    // duration <= 0 이면 인스펙터 fadeDuration 사용. 컷씬 스킵 등에서 빠르게 넘기고 싶을 때 명시.
+    public void FadeToScene(string sceneName, float duration = -1f)
     {
-        StartCoroutine(FadeRoutine(sceneName));
+        float dur = duration > 0f ? duration : fadeDuration;
+        StartCoroutine(FadeRoutine(sceneName, dur));
     }
 
-    IEnumerator FadeRoutine(string sceneName)
+    IEnumerator FadeRoutine(string sceneName, float dur)
     {
-        yield return StartCoroutine(Fade(0f, 1f));
+        yield return StartCoroutine(Fade(0f, 1f, dur));
         SceneManager.LoadScene(sceneName);
         yield return null;
-        yield return StartCoroutine(Fade(1f, 0f));
+        yield return StartCoroutine(Fade(1f, 0f, dur));
     }
 
-    IEnumerator Fade(float from, float to)
+    IEnumerator Fade(float from, float to, float dur)
     {
         if (fadeImage == null) yield break;
 
@@ -51,10 +53,10 @@ public class FadeManager : MonoBehaviour
         color.a = from;
         fadeImage.color = color;
 
-        while (elapsed < fadeDuration)
+        while (elapsed < dur)
         {
             elapsed += Time.deltaTime;
-            color.a = Mathf.Lerp(from, to, elapsed / fadeDuration);
+            color.a = Mathf.Lerp(from, to, elapsed / dur);
             fadeImage.color = color;
             yield return null;
         }

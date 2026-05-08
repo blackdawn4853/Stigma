@@ -98,6 +98,8 @@ public class Monster : MonoBehaviour
         if (hasSpriteOverride)
         {
             spriteRenderer.sprite = data.spriteOverride;
+            // 배경 레이어(Floor/Top_Left order=0)보다 앞에 그리도록 강제 — 동률이면 Z 에 따라 가려짐.
+            spriteRenderer.sortingOrder = 10;
             // Animator 가 매 프레임 sprite 를 덮어쓰는 것 방지 — animatorOverride 가 없으면 정적 sprite 로 간주.
             // (Animator 비활성 상태에서도 HitEffect 의 색상 플래시는 동작.)
             if (animator != null && !hasAnimOverride) animator.enabled = false;

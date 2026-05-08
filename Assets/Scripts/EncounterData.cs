@@ -16,7 +16,7 @@ public class EncounterData : ScriptableObject
     public string encounterName;
     public Tier tier = Tier.Normal;
 
-    [Header("구성 몬스터 (배치 위치는 BattleManager.encounterAnchor 기준 오프셋)")]
+    [Header("구성 몬스터 (배치 위치는 BattleManager.monsterAnchorPosition 기준 오프셋)")]
     public EncounterEntry[] entries;
 
     [System.Serializable]

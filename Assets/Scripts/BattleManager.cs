@@ -8,31 +8,23 @@ public class BattleManager : MonoBehaviour
 
     [Header("몬스터 (씬에 사전 배치된 Monster 컴포넌트들 - 인카운터 미설정 시 폴백)")]
     public List<Monster> monsters = new List<Monster>();
+    [Tooltip("씬에 미리 배치된 Monster 컴포넌트를 자동 검색하여 monsters 리스트에 채움 (인카운터 미설정 시).")]
     public bool autoFindMonsters = true;
 
-    [Header("인카운터 동적 스폰 (NextEncounter 가 있으면 씬 배치 무시)")]
+    [Header("몬스터 배치 (인스펙터에서 직접 조정)")]
+    [Tooltip("인카운터 동적 스폰 시 사용할 몬스터 프리팹 (MonsterBase 등)")]
     public GameObject monsterPrefab;
-    public Transform encounterAnchor; // 비워두면 defaultAnchorPosition 사용
-    public Vector3 defaultAnchorPosition = new Vector3(5f, -3f, 0f);
-    [Tooltip("다중 몬스터 자동 가로 간격 (anchor 중심으로 좌우 분산)")]
-    public float monsterSpacing = 2f;
-    [Tooltip("몬스터 1마리 추가될 때마다 플레이어를 이만큼 왼쪽으로 밀어 공간 확보 (단독 시 0)")]
-    public float playerLeftShiftPerExtraMonster = 0.7f;
+    [Tooltip("몬스터 행의 중심 좌표. 이 위치를 기준으로 좌우 분산되어 스폰. Y 가 곧 몬스터의 발 라인.")]
+    public Vector3 monsterAnchorPosition = new Vector3(5f, -1f, 0f);
+    [Tooltip("다중 몬스터 시 좌우 간격 (월드 단위). 2마리: ±spacing/2, 3마리: -spacing/0/+spacing")]
+    public float monsterSpacing = 1.2f;
 
-    [Header("플레이어 위치 고정")]
-    [Tooltip("켜면 씬에 배치한 플레이어 위치를 그대로 유지 (몬스터 수에 따른 좌측 시프트 + 바닥 정렬을 플레이어에게는 적용하지 않음). 직접 위치 잡고 고정시킬 때 사용.")]
-    public bool lockPlayerPosition = true;
-
-    [Header("바닥 정렬 (카메라 뷰 기준 발 위치 자동 보정)")]
-    [Tooltip("켜면 카메라 줌이 바뀌거나 몬스터 sprite 크기가 달라도 모두 같은 화면 바닥 라인에 발 정렬")]
-    public bool autoAlignToFloor = true;
-    [Tooltip("화면 하단에서 위로 얼마나 떨어진 지점을 발 라인으로 잡을지 (0.2 = 화면 하단 20% 지점)")]
-    [Range(0f, 0.5f)] public float floorPaddingFraction = 0.2f;
-
-    [Header("카메라 프레이밍 (몬스터 수에 따라 직교 사이즈 조정)")]
+    [Header("카메라")]
     public Camera battleCamera;
     public bool autoFindBattleCamera = true;
-    // index 0 = 1마리, 1 = 2마리, 2 = 3마리, 3 = 4마리. 부족하면 마지막 값 사용.
+    [Tooltip("켜면 몬스터 수에 따라 카메라 ortho 사이즈 자동 변경. 끄면 씬에 잡은 카메라 그대로 — 플레이어/몬스터가 보이는 크기 동일.")]
+    public bool autoApplyCameraFraming = false;
+    [Tooltip("autoApplyCameraFraming 켰을 때만 사용. index 0 = 1마리, 1 = 2마리, 2 = 3마리, 3 = 4마리. 부족하면 마지막 값 사용.")]
     public float[] cameraSizeByMonsterCount = { 5f, 6f, 7f, 8f };
 
     [Header("플레이어 설정")]
@@ -64,14 +56,20 @@ public class BattleManager : MonoBehaviour
     [Header("테스트용 시작 카드")]
     public CardData[] startingCards;
 
-    [Header("인트로 연출")]
+    [Header("플레이어 (씬에서 위치 직접 조정 — 인스펙터 Transform 값이 곧 시작/최종 위치)")]
+    [Tooltip("플레이어 GameObject. 위치는 이 GameObject 의 Transform 인스펙터에서 직접 잡으세요 — 코드는 건드리지 않습니다.")]
     public GameObject playerObject;
+    [Tooltip("인트로 슬라이드 인 연출 속도 (1=1초)")]
     public float introSpeed = 3f;
+    [Tooltip("끄면 슬라이드 인 연출 스킵 — 시작부터 최종 위치에 등장")]
+    public bool playIntroSlide = true;
     public HitEffect playerHitEffect;
 
+    [Header("캐릭터 Parallax")]
+    [Tooltip("플레이어/몬스터에 적용할 parallaxFactor. Floor 레이어의 값과 같아야 발이 floor 에 붙어 같이 움직임.")]
+    [Range(0f, 1f)] public float characterParallaxFactor = 0.7f;
+
     private bool introComplete = false;
-    private Vector3 playerBasePosition;
-    private bool playerBasePositionCached = false;
     private List<string> gazeChangeLog = new List<string>();
     private int nextTurnManaReduction = 0;
     private int regenHealAmount = 5;
@@ -110,6 +108,14 @@ public class BattleManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         else { Destroy(gameObject); return; }
+
+        // 하단 HUD 바 + 플레이어 HP 바 자동 부트스트랩
+        BottomHudBar.EnsureForBattle();
+        PlayerHpBarUI.EnsureForBattle();
+        MouseCameraController.EnsureForBattle();
+
+        // 플레이어에 ParallaxLayer 부착 (인트로 동안 비활성, 끝난 후 활성화됨)
+        if (playerObject != null) AttachCharacterParallax(playerObject);
 
         // 인카운터가 설정돼있으면 씬 배치 몬스터를 모두 제거하고 인카운터로 스폰
         if (EncounterDatabase.NextEncounter != null)
@@ -151,7 +157,6 @@ public class BattleManager : MonoBehaviour
             Debug.LogError("[BattleManager] monsterPrefab 미할당 — 인카운터 스폰 불가");
             return;
         }
-        Vector3 anchor = encounterAnchor != null ? encounterAnchor.position : defaultAnchorPosition;
 
         // 유효 엔트리 카운트 (자동 가로 분산용)
         int validCount = 0;
@@ -164,11 +169,11 @@ public class BattleManager : MonoBehaviour
             var entry = encounter.entries[i];
             if (entry == null || entry.data == null) continue;
 
-            // 자동 가로 정렬: anchor 중심으로 좌우 균등 분산. (count-1)/2 를 빼서 가운데 정렬.
+            // 인스펙터 monsterAnchorPosition 중심으로 좌우 균등 분산.
             // 단독이면 autoX=0, 2마리면 ±spacing/2, 3마리면 -spacing/0/+spacing 등.
             float autoX = (idx - (validCount - 1) * 0.5f) * monsterSpacing;
             // entry.positionOffset 는 인카운터별 미세 조정용 (자동 정렬 위에 더해짐)
-            Vector3 pos = anchor
+            Vector3 pos = monsterAnchorPosition
                         + new Vector3(autoX, 0f, 0f)
                         + new Vector3(entry.positionOffset.x, entry.positionOffset.y, 0f);
             idx++;
@@ -179,9 +184,45 @@ public class BattleManager : MonoBehaviour
             if (mono == null) mono = go.AddComponent<Monster>();
             mono.data = entry.data;
             AttachBossAI(go, entry.data);
+            AttachCharacterParallax(go);
             monsters.Add(mono);
+            Debug.Log($"[몬스터 {idx}] 위치: ({pos.x:F2}, {pos.y:F2}) — {entry.data.monsterName}");
         }
-        Debug.Log($"[BattleManager] 인카운터 스폰: {encounter.encounterName} ({monsters.Count}마리, anchor={anchor}, spacing={monsterSpacing})");
+        // 새로 부착된 ParallaxLayer 들을 카메라가 추적하도록 갱신
+        if (MouseCameraController.Instance != null)
+            MouseCameraController.Instance.RefreshLayerCache();
+        Debug.Log($"[BattleManager] 인카운터 스폰: {encounter.encounterName} ({monsters.Count}마리, anchor={monsterAnchorPosition}, spacing={monsterSpacing})");
+    }
+
+    // 캐릭터(플레이어/몬스터)에 ParallaxLayer 부착 — factor=1 로 floor 와 같이 카메라 따라가게.
+    // depth/intensityMultiplier 0 으로 맞춰서 피격 쉐이크엔 영향받지 않음.
+    // active=false 로 시작 — 인트로 슬라이드 끝난 뒤 EngageNow() 로 활성.
+    void AttachCharacterParallax(GameObject go)
+    {
+        if (go == null) return;
+        var pl = go.GetComponent<ParallaxLayer>();
+        if (pl == null) pl = go.AddComponent<ParallaxLayer>();
+        pl.parallaxFactor = characterParallaxFactor; // floor 와 같은 값이어야 발 안 뜸
+        pl.depth = 0f;
+        pl.intensityMultiplier = 0f;
+        pl.active = false;
+    }
+
+    void EngageCharacterParallax()
+    {
+        if (playerObject != null)
+        {
+            var pl = playerObject.GetComponent<ParallaxLayer>();
+            if (pl != null) pl.EngageNow();
+        }
+        for (int i = 0; i < monsters.Count; i++)
+        {
+            if (monsters[i] == null) continue;
+            var pl = monsters[i].GetComponent<ParallaxLayer>();
+            if (pl != null) pl.EngageNow();
+        }
+        if (MouseCameraController.Instance != null)
+            MouseCameraController.Instance.RefreshLayerCache();
     }
 
     // MonsterData.bossAIType 에 따라 해당 컴포넌트를 부착. 신규 보스 추가 시 case 만 늘리면 됨.
@@ -258,12 +299,13 @@ public class BattleManager : MonoBehaviour
         }
 
         ApplyCameraFraming();
-        ApplyPlayerShift();
-        AlignAllToFloor();
 
         // 모든 위치 보정 끝난 후 최종 위치 캐시 (인트로 코루틴이 이 위치로 슬라이드 인)
         for (int i = 0; i < monsters.Count; i++)
             if (monsters[i] != null) monsters[i].CacheFinalPosition();
+
+        if (playerObject != null)
+            Debug.Log($"[플레이어] 시작 위치: ({playerObject.transform.position.x:F2}, {playerObject.transform.position.y:F2})");
 
         if (GazeEffectManager.Instance != null)
             GazeEffectManager.Instance.InitializeBattle();
@@ -296,6 +338,7 @@ public class BattleManager : MonoBehaviour
         else
         {
             introComplete = true;
+            EngageCharacterParallax();
             RefreshAllIntents();
         }
 
@@ -310,7 +353,7 @@ public class BattleManager : MonoBehaviour
         if (PlayerHand.Instance != null) PlayerHand.Instance.gameObject.SetActive(false);
 
         Vector3 playerFinalPos = playerObject.transform.position;
-        Vector3 playerStartPos = playerFinalPos + new Vector3(-15f, 0, 0);
+        Vector3 playerStartPos = playIntroSlide ? playerFinalPos + new Vector3(-15f, 0, 0) : playerFinalPos;
         playerObject.transform.position = playerStartPos;
 
         // 각 몬스터 시작 위치 저장
@@ -321,22 +364,25 @@ public class BattleManager : MonoBehaviour
             if (monsters[i] == null) continue;
             finalPositions[i] = monsters[i].FinalPosition;
             float offset = Mathf.Max(0.1f, monsters[i].introEnterOffsetX);
-            startPositions[i] = finalPositions[i] + new Vector3(offset, 0, 0);
+            startPositions[i] = playIntroSlide ? finalPositions[i] + new Vector3(offset, 0, 0) : finalPositions[i];
             monsters[i].transform.position = startPositions[i];
         }
 
-        float t = 0f;
-        while (t < 1f)
+        if (playIntroSlide)
         {
-            t += Time.deltaTime * introSpeed;
-            float smooth = Mathf.SmoothStep(0, 1, Mathf.Clamp01(t));
-            playerObject.transform.position = Vector3.Lerp(playerStartPos, playerFinalPos, smooth);
-            for (int i = 0; i < monsters.Count; i++)
+            float t = 0f;
+            while (t < 1f)
             {
-                if (monsters[i] == null) continue;
-                monsters[i].transform.position = Vector3.Lerp(startPositions[i], finalPositions[i], smooth);
+                t += Time.deltaTime * introSpeed;
+                float smooth = Mathf.SmoothStep(0, 1, Mathf.Clamp01(t));
+                playerObject.transform.position = Vector3.Lerp(playerStartPos, playerFinalPos, smooth);
+                for (int i = 0; i < monsters.Count; i++)
+                {
+                    if (monsters[i] == null) continue;
+                    monsters[i].transform.position = Vector3.Lerp(startPositions[i], finalPositions[i], smooth);
+                }
+                yield return null;
             }
-            yield return null;
         }
 
         playerObject.transform.position = playerFinalPos;
@@ -353,74 +399,16 @@ public class BattleManager : MonoBehaviour
 
         RefreshAllIntents();
 
+        // 인트로 끝 — 플레이어/몬스터 ParallaxLayer 활성화 (현재 위치를 origin 으로 캡처).
+        EngageCharacterParallax();
+
         introComplete = true;
-        Debug.Log("인트로 완료!");
-    }
-
-    // 몬스터 수에 따라 플레이어 위치를 왼쪽으로 밀어 공간 확보.
-    // 첫 호출 시 인스펙터/씬에 배치된 위치를 base 로 캐시 → 이후엔 base 기준으로 매번 재계산.
-    void ApplyPlayerShift()
-    {
-        if (playerObject == null) return;
-        if (lockPlayerPosition) return;
-        if (!playerBasePositionCached)
-        {
-            playerBasePosition = playerObject.transform.position;
-            playerBasePositionCached = true;
-        }
-
-        int count = 0;
-        for (int i = 0; i < monsters.Count; i++)
-            if (monsters[i] != null) count++;
-        float shift = Mathf.Max(0, count - 1) * playerLeftShiftPerExtraMonster;
-
-        playerObject.transform.position = new Vector3(
-            playerBasePosition.x - shift,
-            playerBasePosition.y,
-            playerBasePosition.z);
-    }
-
-    // 카메라 뷰 기준 "발 라인" Y 좌표. 카메라 ortho 사이즈가 바뀌면 자동으로 화면 하단 비율에 맞춰 이동.
-    float ComputeFloorY()
-    {
-        var cam = battleCamera != null ? battleCamera : Camera.main;
-        if (cam == null || !cam.orthographic) return 0f;
-        // 화면 바닥 = cam.y - ortho. 패딩만큼 위로 올림.
-        return cam.transform.position.y + cam.orthographicSize * (2f * floorPaddingFraction - 1f);
-    }
-
-    void AlignAllToFloor()
-    {
-        if (!autoAlignToFloor) return;
-        float floorY = ComputeFloorY();
-
-        for (int i = 0; i < monsters.Count; i++)
-        {
-            if (monsters[i] == null) continue;
-            AlignTransformToFloor(monsters[i].transform, floorY);
-        }
-        if (playerObject != null && !lockPlayerPosition)
-            AlignTransformToFloor(playerObject.transform, floorY);
-
-        Debug.Log($"[BattleManager] floor 정렬 — floorY={floorY:F2} (cam ortho={ (battleCamera != null ? battleCamera : Camera.main)?.orthographicSize ?? 0f:F2})");
-    }
-
-    // 대상 Transform 의 자식 SpriteRenderer 의 월드 bounds 의 바닥(min.y)이 floorY 가 되도록 Y 만 평행이동.
-    // 스프라이트 크기/scale/pivot 무관 — 항상 발(스프라이트 바닥)이 floor 라인에 맞춰짐.
-    void AlignTransformToFloor(Transform t, float floorY)
-    {
-        var sr = t.GetComponentInChildren<SpriteRenderer>();
-        if (sr == null || sr.sprite == null) return;
-
-        Bounds b = sr.bounds; // world space, 현재 transform 반영됨
-        float currentBottom = b.min.y;
-        float delta = floorY - currentBottom;
-        Vector3 p = t.position;
-        t.position = new Vector3(p.x, p.y + delta, p.z);
+        Debug.Log($"[플레이어] 최종 위치: ({playerFinalPos.x:F2}, {playerFinalPos.y:F2})");
     }
 
     void ApplyCameraFraming()
     {
+        if (!autoApplyCameraFraming) return;
         if (battleCamera == null && autoFindBattleCamera) battleCamera = Camera.main;
         if (battleCamera == null || !battleCamera.orthographic) return;
         if (cameraSizeByMonsterCount == null || cameraSizeByMonsterCount.Length == 0) return;
@@ -434,6 +422,102 @@ public class BattleManager : MonoBehaviour
         float targetSize = cameraSizeByMonsterCount[idx];
         battleCamera.orthographicSize = targetSize;
         Debug.Log($"[BattleManager] 카메라 프레이밍: 몬스터 {count}마리 → orthographicSize {targetSize}");
+    }
+
+    // ─── 에디터 미리보기 ────────────────────────────────────────────
+    // BattleManager 인스펙터 우상단 점 3개 메뉴 또는 우클릭 → "Preview: 인카운터 스폰" 으로 호출.
+    // EncounterDatabase.NextEncounter 가 설정돼있으면 그것을, 없으면 monsters 리스트에 미리 잡혀있는 데이터로 스폰.
+    // 에디터 모드에서 Instantiate — 씬 하이어라키에 일반 GameObject 로 남으므로 Play 안 눌러도 위치/스케일 확인 가능.
+    [ContextMenu("Preview: 인카운터 스폰")]
+    void EditorSpawnPreview()
+    {
+        ClearPreview();
+        if (monsterPrefab == null)
+        {
+            Debug.LogWarning("[BattleManager] Preview 스폰 — monsterPrefab 미할당");
+            return;
+        }
+
+        var encounter = EncounterDatabase.NextEncounter;
+        int count = 0;
+        if (encounter != null && encounter.entries != null)
+        {
+            int validCount = 0;
+            for (int i = 0; i < encounter.entries.Length; i++)
+                if (encounter.entries[i] != null && encounter.entries[i].data != null) validCount++;
+
+            int idx = 0;
+            for (int i = 0; i < encounter.entries.Length; i++)
+            {
+                var entry = encounter.entries[i];
+                if (entry == null || entry.data == null) continue;
+                float autoX = (idx - (validCount - 1) * 0.5f) * monsterSpacing;
+                Vector3 pos = monsterAnchorPosition
+                            + new Vector3(autoX, 0f, 0f)
+                            + new Vector3(entry.positionOffset.x, entry.positionOffset.y, 0f);
+                idx++;
+                SpawnPreviewOne(entry.data, pos);
+                count++;
+            }
+        }
+        else
+        {
+            // 폴백: monsters 리스트의 data 만으로 미리보기
+            int valid = 0;
+            for (int i = 0; i < monsters.Count; i++)
+                if (monsters[i] != null && monsters[i].data != null) valid++;
+            int idx = 0;
+            for (int i = 0; i < monsters.Count; i++)
+            {
+                var m = monsters[i];
+                if (m == null || m.data == null) continue;
+                float autoX = (idx - (valid - 1) * 0.5f) * monsterSpacing;
+                Vector3 pos = monsterAnchorPosition + new Vector3(autoX, 0f, 0f);
+                idx++;
+                SpawnPreviewOne(m.data, pos);
+                count++;
+            }
+        }
+
+        Debug.Log($"[BattleManager] Preview 스폰 완료 — {count}마리. MonsterData.visualScale 조정 후 다시 호출하면 갱신됨.");
+    }
+
+    void SpawnPreviewOne(MonsterData data, Vector3 pos)
+    {
+#if UNITY_EDITOR
+        var go = (GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(monsterPrefab);
+        if (go == null) go = Instantiate(monsterPrefab);
+#else
+        var go = Instantiate(monsterPrefab);
+#endif
+        go.name = $"_Preview_{data.monsterName}";
+        go.transform.position = pos;
+        var mono = go.GetComponent<Monster>();
+        if (mono == null) mono = go.AddComponent<Monster>();
+        mono.data = data;
+        mono.ApplyVisualOverride();
+    }
+
+    [ContextMenu("Preview: 클리어")]
+    void ClearPreview()
+    {
+#if UNITY_2023_1_OR_NEWER
+        var found = FindObjectsByType<Monster>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        var found = FindObjectsOfType<Monster>(true);
+#endif
+        int removed = 0;
+        for (int i = 0; i < found.Length; i++)
+        {
+            var go = found[i].gameObject;
+            if (go.name.StartsWith("_Preview_"))
+            {
+                if (Application.isPlaying) Destroy(go);
+                else DestroyImmediate(go);
+                removed++;
+            }
+        }
+        if (removed > 0) Debug.Log($"[BattleManager] Preview 클리어 — {removed}마리 제거");
     }
 
     void RefreshAllIntents()

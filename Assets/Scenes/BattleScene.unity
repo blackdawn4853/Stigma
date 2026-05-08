@@ -1241,8 +1241,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
+  parallaxFactor: 0.7
   depth: 0.7
   intensityMultiplier: 1
+  active: 1
 --- !u!212 &778188947
 SpriteRenderer:
   serializedVersion: 2
@@ -1484,8 +1486,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
+  parallaxFactor: 0.15
   depth: 0.15
   intensityMultiplier: 1
+  active: 1
 --- !u!212 &900976392
 SpriteRenderer:
   serializedVersion: 2
@@ -1590,8 +1594,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
+  parallaxFactor: 0.35
   depth: 0.35
   intensityMultiplier: 1
+  active: 1
 --- !u!212 &961519572
 SpriteRenderer:
   serializedVersion: 2
@@ -1896,7 +1902,7 @@ MonoBehaviour:
   monsterPrefab: {fileID: 5176905881636237849, guid: fc79f9ab61403c04e83e242fd4cbd1d6, type: 3}
   encounterAnchor: {fileID: 0}
   defaultAnchorPosition: {x: 5, y: -1, z: 0}
-  monsterSpacing: 2
+  monsterSpacing: 2.5
   playerLeftShiftPerExtraMonster: 0.7
   lockPlayerPosition: 1
   autoAlignToFloor: 1
@@ -4291,8 +4297,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
+  parallaxFactor: 1
   depth: 1
   intensityMultiplier: 1
+  active: 1
 --- !u!212 &1914510043
 SpriteRenderer:
   serializedVersion: 2
@@ -4894,8 +4902,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
+  parallaxFactor: 0
   depth: 0
   intensityMultiplier: 1
+  active: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

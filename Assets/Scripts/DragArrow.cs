@@ -10,6 +10,8 @@ public class DragArrow : MonoBehaviour
     public int curveResolution = 20; // 곡선 부드러움
     public Color arrowColor = Color.red;
     public float lineWidth = 0.1f;
+    [Tooltip("몬스터/플레이어(=10) 보다 위에 그려지도록 충분히 큰 값. 클로즈업 pop(=100) 보다는 작게.")]
+    public int sortingOrder = 50;
 
     private bool isActive = false;
     private Vector3 startPos;
@@ -33,9 +35,14 @@ public class DragArrow : MonoBehaviour
         lineRenderer.endWidth = lineWidth * 0.3f;
         lineRenderer.positionCount = curveResolution;
         lineRenderer.enabled = false;
+        lineRenderer.sortingOrder = sortingOrder;
 
         if (arrowHead != null)
+        {
             arrowHead.gameObject.SetActive(false);
+            var headSr = arrowHead.GetComponent<SpriteRenderer>();
+            if (headSr != null) headSr.sortingOrder = sortingOrder + 1;
+        }
     }
 
     public void ShowArrow(Vector3 start)

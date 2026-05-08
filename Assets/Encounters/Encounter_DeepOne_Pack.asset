@@ -16,8 +16,8 @@ MonoBehaviour:
   tier: 0
   entries:
   - data: {fileID: 11400000, guid: 703479406f8ca544d9ebabf66ae75d5f, type: 2}
-    positionOffset: {x: -3, y: 0}
+    positionOffset: {x: 0, y: 0}
   - data: {fileID: 11400000, guid: 1641831fd54c8af42a0b5c9f0bb03ec4, type: 2}
     positionOffset: {x: 0, y: 0}
   - data: {fileID: 11400000, guid: 56471dcf20434d64299ac4b573ef5dc9, type: 2}
-    positionOffset: {x: 3, y: 0}
+    positionOffset: {x: 0, y: 0}

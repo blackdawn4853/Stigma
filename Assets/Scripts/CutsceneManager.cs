@@ -17,6 +17,8 @@ public class CutsceneManager : MonoBehaviour
     public float typingSpeed = 0.05f;
     public string nextScene = "NodeMap";
     public float skipHoldDuration = 2f;
+    [Tooltip("ESC 길게 눌러 스킵 시 페이드 인/아웃 시간 (초). 짧을수록 즉시 넘어감.")]
+    public float skipFadeDuration = 0.2f;
 
     private bool isSkipping = false;
     private float skipProgress = 0f;
@@ -181,7 +183,7 @@ public class CutsceneManager : MonoBehaviour
         }
 
         if (FadeManager.Instance != null)
-            FadeManager.Instance.FadeToScene(nextScene);
+            FadeManager.Instance.FadeToScene(nextScene, isSkipping ? skipFadeDuration : -1f);
         else
             UnityEngine.SceneManagement.SceneManager.LoadScene(nextScene);
     }

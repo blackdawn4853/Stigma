@@ -43,6 +43,7 @@ public class CombatCameraEffect : MonoBehaviour
     Camera cam;
     Coroutine closeupCo;
     bool closeupActive;
+    public bool IsCloseupActive => closeupActive;
     Vector3 snapCamPos;
     float snapOrthoSize;
     SpriteRenderer snapSr;

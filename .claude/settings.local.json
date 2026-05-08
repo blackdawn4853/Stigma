@@ -18,7 +18,8 @@
       "Read(//tmp/**)",
       "Bash(break)",
       "Bash(xargs -I {} grep -l \"guid\" {})",
-      "Bash(xargs -I {} grep \"^guid:\" {})"
+      "Bash(xargs -I {} grep \"^guid:\" {})",
+      "Bash(xargs grep -l \"EncounterData\\\\|EncounterPool\")"
     ]
   }
 }
