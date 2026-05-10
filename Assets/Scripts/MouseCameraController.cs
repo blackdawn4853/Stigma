@@ -21,10 +21,18 @@ public class MouseCameraController : MonoBehaviour
     [Tooltip("끄면 카메라만 움직이고 배경 레이어는 안 따라감")]
     public bool driveParallax = true;
 
+    [Header("자유 카메라 모드 (스크린샷용)")]
+    [Tooltip("토글 키를 누르면 ON. WASD 패닝 / 마우스 휠 = Z 이동 (zoom) / Shift+휠 = FOV. ON 동안엔 마우스 추적/Parallax 일시 정지.")]
+    public KeyCode freeCameraToggleKey = KeyCode.F8;
+    public float freePanSpeed = 5f;
+    public float freeZoomSpeed = 1f;
+    public float freeFovSpeed = 5f;
+
     Camera cam;
     Vector3 basePosition;
     Vector3 currentOffset;
     ParallaxLayer[] cachedLayers;
+    bool freeMode;
 
     // BattleManager.Awake 가 호출 — Camera.main 에 자동 부착.
     public static MouseCameraController EnsureForBattle()
@@ -70,6 +78,24 @@ public class MouseCameraController : MonoBehaviour
 
     void LateUpdate()
     {
+        // 자유 카메라 토글
+        if (Input.GetKeyDown(freeCameraToggleKey))
+        {
+            freeMode = !freeMode;
+            if (!freeMode)
+            {
+                basePosition = transform.position;
+                currentOffset = Vector3.zero;
+            }
+            Debug.Log($"[FreeCam] {(freeMode ? "ON — WASD 패닝 / 휠 = Z / Shift+휠 = FOV" : "OFF")}");
+        }
+
+        if (freeMode)
+        {
+            HandleFreeCameraInput();
+            return;
+        }
+
         // 클로즈업 중이면 카메라 통제권 양보 — 마우스 추적 + Parallax 일시 정지.
         if (CombatCameraEffect.Instance != null && CombatCameraEffect.Instance.IsCloseupActive) return;
 
@@ -96,5 +122,27 @@ public class MouseCameraController : MonoBehaviour
                     cachedLayers[i].ApplyParallaxOffset(currentOffset);
             }
         }
+    }
+
+    void HandleFreeCameraInput()
+    {
+        Vector3 pos = transform.position;
+
+        float dx = (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0);
+        float dy = (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0);
+        pos.x += dx * freePanSpeed * Time.deltaTime;
+        pos.y += dy * freePanSpeed * Time.deltaTime;
+
+        float wheel = Input.mouseScrollDelta.y;
+        if (Mathf.Abs(wheel) > 0.001f)
+        {
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (shift)
+                cam.fieldOfView = Mathf.Clamp(cam.fieldOfView - wheel * freeFovSpeed, 10f, 120f);
+            else
+                pos.z += wheel * freeZoomSpeed;
+        }
+
+        transform.position = pos;
     }
 }

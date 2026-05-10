@@ -201,8 +201,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
                 if (DragArrow.Instance != null)
                 {
-                    Vector3 startWorld = Camera.main.ScreenToWorldPoint(dragStartScreenPos);
-                    startWorld.z = 0;
+                    Vector3 startWorld = ScreenToWorldOnZ0(dragStartScreenPos);
                     DragArrow.Instance.ShowArrow(startWorld);
                 }
             }
@@ -210,8 +209,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
         if (isArrowMode && DragArrow.Instance != null)
         {
-            Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(eventData.position);
-            mouseWorld.z = 0;
+            Vector3 mouseWorld = ScreenToWorldOnZ0(eventData.position);
             DragArrow.Instance.UpdateArrow(mouseWorld);
         }
     }
@@ -234,8 +232,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
         if (cardData.requiresTarget)
         {
-            Vector3 worldPos = Camera.main.ScreenToWorldPoint(eventData.position);
-            worldPos.z = 0;
+            Vector3 worldPos = ScreenToWorldOnZ0(eventData.position);
             Collider2D hit = Physics2D.OverlapPoint(worldPos);
 
             if (hit != null && hit.CompareTag("Monster"))
@@ -313,4 +310,16 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
     public CardData GetCardData() => cardData;
     public int GetInstanceId() => instanceId;
+
+    // 화면 좌표를 월드 Z=0 평면 위 좌표로 변환 — orthographic/perspective 카메라 모두 대응.
+    static Vector3 ScreenToWorldOnZ0(Vector2 screenPos)
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return Vector3.zero;
+        Ray ray = cam.ScreenPointToRay(screenPos);
+        Plane plane = new Plane(Vector3.forward, Vector3.zero);
+        if (plane.Raycast(ray, out float enter))
+            return ray.GetPoint(enter);
+        return new Vector3(screenPos.x, screenPos.y, 0f);
+    }
 }

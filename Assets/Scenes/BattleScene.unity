@@ -316,8 +316,8 @@ Transform:
   m_GameObject: {fileID: 195866104}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.11, y: -1.81, z: 0}
-  m_LocalScale: {x: 0.35, y: 0.35, z: 1}
+  m_LocalPosition: {x: -9.49, y: -2.82, z: 0}
+  m_LocalScale: {x: 0.7791655, y: 0.76860195, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1223,8 +1223,8 @@ Transform:
   m_GameObject: {fileID: 778188944}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.05, y: -7.29, z: 0}
-  m_LocalScale: {x: 0.9914875, y: 0.77714294, z: 1}
+  m_LocalPosition: {x: -0.6, y: -9.4912, z: 0}
+  m_LocalScale: {x: 1.1541795, y: 1.0845294, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8000000002}
@@ -1241,7 +1241,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
-  parallaxFactor: 0.7
+  parallaxFactor: 1
   depth: 0.7
   intensityMultiplier: 1
   active: 1
@@ -1468,8 +1468,8 @@ Transform:
   m_GameObject: {fileID: 900976389}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -12.5, y: 6.5, z: 0}
-  m_LocalScale: {x: 0.77714294, y: 0.77714294, z: 1}
+  m_LocalPosition: {x: -24.23, y: 13.39, z: 20}
+  m_LocalScale: {x: 2.6859004, y: 2.1206236, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8000000002}
@@ -1486,7 +1486,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
-  parallaxFactor: 0.15
+  parallaxFactor: 1
   depth: 0.15
   intensityMultiplier: 1
   active: 1
@@ -1576,8 +1576,8 @@ Transform:
   m_GameObject: {fileID: 961519569}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.8, y: -3.37, z: 0}
-  m_LocalScale: {x: 0.77714294, y: 0.77714294, z: 1}
+  m_LocalPosition: {x: -0.42, y: -6.63, z: 8}
+  m_LocalScale: {x: 1.17, y: 1.17, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8000000002}
@@ -1594,7 +1594,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
-  parallaxFactor: 0.35
+  parallaxFactor: 0.2
   depth: 0.35
   intensityMultiplier: 1
   active: 1
@@ -1900,15 +1900,11 @@ MonoBehaviour:
   monsters: []
   autoFindMonsters: 1
   monsterPrefab: {fileID: 5176905881636237849, guid: fc79f9ab61403c04e83e242fd4cbd1d6, type: 3}
-  encounterAnchor: {fileID: 0}
-  defaultAnchorPosition: {x: 5, y: -1, z: 0}
+  monsterAnchorPosition: {x: 5, y: -1, z: 0}
   monsterSpacing: 2.5
-  playerLeftShiftPerExtraMonster: 0.7
-  lockPlayerPosition: 1
-  autoAlignToFloor: 1
-  floorPaddingFraction: 0.2
   battleCamera: {fileID: 0}
   autoFindBattleCamera: 1
+  autoApplyCameraFraming: 0
   cameraSizeByMonsterCount:
   - 5
   - 6
@@ -1935,7 +1931,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
   playerObject: {fileID: 195866104}
   introSpeed: 0.8
+  playIntroSlide: 1
   playerHitEffect: {fileID: 195866107}
+  characterParallaxFactor: 1
 --- !u!4 &1067636941
 Transform:
   m_ObjectHideFlags: 0
@@ -3280,6 +3278,7 @@ MonoBehaviour:
   curveResolution: 20
   arrowColor: {r: 1, g: 0, b: 0, a: 1}
   lineWidth: 0.1
+  sortingOrder: 50
 --- !u!4 &1366769840
 Transform:
   m_ObjectHideFlags: 0
@@ -4279,8 +4278,8 @@ Transform:
   m_GameObject: {fileID: 1914510040}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -8.1, y: -1.41, z: 0}
-  m_LocalScale: {x: 0.77714294, y: 0.77714294, z: 1}
+  m_LocalPosition: {x: -7.25, y: -2.09, z: -3}
+  m_LocalScale: {x: 0.62, y: 0.62, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 8000000002}
@@ -4297,7 +4296,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf1a92b2caf218f4ab9454dc49ffd672, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ParallaxLayer
-  parallaxFactor: 1
+  parallaxFactor: 0.5
   depth: 1
   intensityMultiplier: 1
   active: 1
@@ -4557,7 +4556,7 @@ Camera:
   near clip plane: 0.3
   far clip plane: 1000
   field of view: 60
-  orthographic: 1
+  orthographic: 0
   orthographic size: 5
   m_Depth: -1
   m_CullingMask:
@@ -4583,7 +4582,7 @@ Transform:
   m_GameObject: {fileID: 2007177405}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalPosition: {x: 0, y: 0, z: -15}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4808,7 +4807,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.46666667, y: 0.46666667, z: 1}
+  m_LocalScale: {x: 0.8082903, y: 0.8082903, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 900976390}

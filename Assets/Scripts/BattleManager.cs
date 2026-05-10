@@ -66,8 +66,8 @@ public class BattleManager : MonoBehaviour
     public HitEffect playerHitEffect;
 
     [Header("캐릭터 Parallax")]
-    [Tooltip("플레이어/몬스터에 적용할 parallaxFactor. Floor 레이어의 값과 같아야 발이 floor 에 붙어 같이 움직임.")]
-    [Range(0f, 1f)] public float characterParallaxFactor = 0.7f;
+    [Tooltip("플레이어/몬스터에 적용할 parallaxFactor. 0 이면 캐릭터 고정 (배경만 패럴럭스). Floor 레이어와 같은 값을 유지해야 발 안 뜸.")]
+    [Range(0f, 1f)] public float characterParallaxFactor = 0f;
 
     private bool introComplete = false;
     private List<string> gazeChangeLog = new List<string>();
@@ -195,7 +195,7 @@ public class BattleManager : MonoBehaviour
     }
 
     // 캐릭터(플레이어/몬스터)에 ParallaxLayer 부착 — factor=1 로 floor 와 같이 카메라 따라가게.
-    // depth/intensityMultiplier 0 으로 맞춰서 피격 쉐이크엔 영향받지 않음.
+    // depth=0 으로 옛날 전체 레이어 쉐이크에선 빠지고, intensityMultiplier=1 로 신규 타겟형 쉐이크엔 정상 반응.
     // active=false 로 시작 — 인트로 슬라이드 끝난 뒤 EngageNow() 로 활성.
     void AttachCharacterParallax(GameObject go)
     {
@@ -204,7 +204,7 @@ public class BattleManager : MonoBehaviour
         if (pl == null) pl = go.AddComponent<ParallaxLayer>();
         pl.parallaxFactor = characterParallaxFactor; // floor 와 같은 값이어야 발 안 뜸
         pl.depth = 0f;
-        pl.intensityMultiplier = 0f;
+        pl.intensityMultiplier = 1f;
         pl.active = false;
     }
 

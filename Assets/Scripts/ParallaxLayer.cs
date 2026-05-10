@@ -54,7 +54,7 @@ public class ParallaxLayer : MonoBehaviour
         parallaxOffset = cameraOffset * parallaxFactor;
     }
 
-    public void Shake(float baseIntensity, float duration)
+    public void Shake(float baseIntensity, float duration, bool ignoreDepth = false)
     {
         if (!originCaptured) CaptureOrigin();
         if (shakeCo != null)
@@ -62,12 +62,13 @@ public class ParallaxLayer : MonoBehaviour
             StopCoroutine(shakeCo);
             shakeOffset = Vector3.zero;
         }
-        shakeCo = StartCoroutine(ShakeRoutine(baseIntensity, duration));
+        shakeCo = StartCoroutine(ShakeRoutine(baseIntensity, duration, ignoreDepth));
     }
 
-    IEnumerator ShakeRoutine(float baseIntensity, float duration)
+    IEnumerator ShakeRoutine(float baseIntensity, float duration, bool ignoreDepth)
     {
-        float amp = baseIntensity * depth * intensityMultiplier;
+        float amp = ignoreDepth ? baseIntensity * intensityMultiplier
+                                : baseIntensity * depth * intensityMultiplier;
         if (amp <= 0f || duration <= 0f) { shakeOffset = Vector3.zero; shakeCo = null; yield break; }
 
         float t = 0f;

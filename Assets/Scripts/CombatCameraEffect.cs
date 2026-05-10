@@ -31,13 +31,13 @@ public class CombatCameraEffect : MonoBehaviour
     [Tooltip("쉐이크 지속 시간 (초)")]
     [Range(0.05f, 0.6f)] public float shakeDuration = 0.25f;
     [Tooltip("1~5 데미지 — 약한 흔들림 (월드 단위)")]
-    [Range(0f, 0.5f)] public float intensityTier1 = 0.05f;
+    [Range(0f, 1f)] public float intensityTier1 = 0.1f;
     [Tooltip("6~15 데미지 — 중간 흔들림")]
-    [Range(0f, 0.6f)] public float intensityTier2 = 0.13f;
+    [Range(0f, 1f)] public float intensityTier2 = 0.2f;
     [Tooltip("16~25 데미지 — 강한 흔들림")]
-    [Range(0f, 0.8f)] public float intensityTier3 = 0.25f;
+    [Range(0f, 1f)] public float intensityTier3 = 0.35f;
     [Tooltip("26+ 데미지 — 매우 강한 흔들림")]
-    [Range(0f, 1f)] public float intensityTier4 = 0.4f;
+    [Range(0f, 1f)] public float intensityTier4 = 0.5f;
 
     // ─── 런타임 ─────────────────────────────────────────────────
     Camera cam;
@@ -168,14 +168,15 @@ public class CombatCameraEffect : MonoBehaviour
         closeupCo = null;
     }
 
-    // ─── 몬스터 피격 — 배경 레이어 쉐이크 ────────────────────────
-    public void MonsterHitShake(int damage)
+    // ─── 몬스터 피격 — 타격받은 몬스터만 쉐이크 ──────────────────
+    public void MonsterHitShake(int damage, Monster target = null)
     {
         float intensity = GetIntensityForDamage(damage);
         if (intensity <= 0f) return;
-        var layers = FindObjectsByType<ParallaxLayer>(FindObjectsSortMode.None);
-        for (int i = 0; i < layers.Length; i++)
-            layers[i].Shake(intensity, shakeDuration);
+        if (target == null) return;
+
+        var pl = target.GetComponent<ParallaxLayer>();
+        if (pl != null) pl.Shake(intensity, shakeDuration, ignoreDepth: true);
     }
 
     public float GetIntensityForDamage(int damage)
