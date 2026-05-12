@@ -59,6 +59,9 @@ public class MonsterRuntimeUI : MonoBehaviour
     {
         canvas = gameObject.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
+        // 몬스터 스프라이트(특히 풀버전 큰 아트)가 캔버스 위로 올라와 HP바를 가리는 문제 방지.
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 500;
         var scaler = gameObject.AddComponent<CanvasScaler>();
         scaler.dynamicPixelsPerUnit = 100f;
         scaler.referencePixelsPerUnit = 100f;

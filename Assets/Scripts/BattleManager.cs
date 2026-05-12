@@ -202,7 +202,7 @@ public class BattleManager : MonoBehaviour
         if (go == null) return;
         var pl = go.GetComponent<ParallaxLayer>();
         if (pl == null) pl = go.AddComponent<ParallaxLayer>();
-        pl.parallaxFactor = characterParallaxFactor; // floor 와 같은 값이어야 발 안 뜸
+        pl.parallaxFactor = characterParallaxFactor; // 루트 레벨 캐릭터는 factor=1 로 카메라 따라가 화면 정지
         pl.depth = 0f;
         pl.intensityMultiplier = 1f;
         pl.active = false;
