@@ -19,7 +19,13 @@
       "Bash(break)",
       "Bash(xargs -I {} grep -l \"guid\" {})",
       "Bash(xargs -I {} grep \"^guid:\" {})",
-      "Bash(xargs grep -l \"EncounterData\\\\|EncounterPool\")"
+      "Bash(xargs grep -l \"EncounterData\\\\|EncounterPool\")",
+      "mcp__unity-mcp__find_in_file",
+      "mcp__unity-mcp__manage_editor",
+      "Bash(Get-Content \"Assets\\\\GazeEffects\\\\GE_20_1_ForbiddenResonance.asset\")",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(cd \"C:\\\\Users\\\\black\\\\prototype\"; \\(Get-Content \"Assets\\\\GazeEffects\\\\GE_20_1_ForbiddenResonance.asset\" | Select-Object -First 15\\))",
+      "PowerShell(Copy-Item *)"
     ]
   }
 }

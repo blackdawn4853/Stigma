@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 24e9c4eb07638c649b2ec2c3c6726b72
+guid: 584b5c59dffbde44982f8e7bfd745184
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7225897608374683936
-    second: DescBox_0
+      213: -3998576050931209156
+    second: "\uAE08\uB2E8 \uC544\uC774\uCF58_0"
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: DescBox_0
+      name: "\uAE08\uB2E8 \uC544\uC774\uCF58_0"
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 1024
-        height: 658
+        width: 142
+        height: 207
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 0e67b7dd86478bb90800000000000000
-      internalID: -7225897608374683936
+      spriteID: c3c6cdc54443288c0800000000000000
+      internalID: -3998576050931209156
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      DescBox_0: -7225897608374683936
+      "\uAE08\uB2E8 \uC544\uC774\uCF58_0": -3998576050931209156
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

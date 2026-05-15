@@ -891,13 +891,16 @@ public class GazeEffectManager : MonoBehaviour
         }
     }
 
+    // 슬롯에 효과가 할당되어 있고, 현재 시선 게이지가 그 슬롯의 임계값 이상일 때만 활성.
+    // (예: 60-1 효과는 gazeLevel >= 60 일 때만 발동)
     bool IsActive(GazeEffectType type)
     {
-        if (activeEffect20 != null && activeEffect20.effectType == type) return true;
-        if (activeEffect40 != null && activeEffect40.effectType == type) return true;
-        if (activeEffect60 != null && activeEffect60.effectType == type) return true;
-        if (activeEffect80 != null && activeEffect80.effectType == type) return true;
-        if (activeEffect100 != null && activeEffect100.effectType == type) return true;
+        int level = BattleManager.Instance != null ? BattleManager.Instance.gazeLevel : 0;
+        if (level >= 20  && activeEffect20  != null && activeEffect20.effectType  == type) return true;
+        if (level >= 40  && activeEffect40  != null && activeEffect40.effectType  == type) return true;
+        if (level >= 60  && activeEffect60  != null && activeEffect60.effectType  == type) return true;
+        if (level >= 80  && activeEffect80  != null && activeEffect80.effectType  == type) return true;
+        if (level >= 100 && activeEffect100 != null && activeEffect100.effectType == type) return true;
         return false;
     }
 }

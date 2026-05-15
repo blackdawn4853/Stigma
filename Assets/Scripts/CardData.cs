@@ -31,9 +31,6 @@ public class CardData : ScriptableObject
     [Header("카드 일러스트 (비워두면 표시 안 함 — 텍스트만)")]
     public Sprite cardImage;
 
-    [Header("카드 식별 아이콘 (중앙, 비워두면 표시 안 함 — 공격=주먹/방어=방패 등)")]
-    public Sprite cardIcon;
-
     public enum CardType
     {
         Attack,    // 공격

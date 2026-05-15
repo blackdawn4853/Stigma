@@ -13,8 +13,21 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public Image rarityBorder;
     // 카드별 일러스트 — CardData.cardImage 가 있으면 표시, 없으면 비활성. 카드 전체를 덮는 배경.
     public Image cardArtImage;
-    // 카드별 식별 아이콘 — CardData.cardIcon 이 있으면 표시 (공격=주먹/방어=방패 등). 카드 중앙.
+    // 카드 종류별 식별 아이콘 — typeStyles 의 cardIconSprite 가 cardType 매칭하여 자동 적용.
     public Image cardIconImage;
+    // 카드 종류별로 sprite 가 자동 교체되는 cost 박스 — typeStyles 에서 cardType 매칭하여 적용.
+    public Image costBoxImage;
+
+    [System.Serializable]
+    public struct CardTypeStyle
+    {
+        public CardData.CardType type;
+        public Sprite costBoxSprite;
+        public Sprite cardIconSprite;
+    }
+
+    [Header("카드 종류별 스타일 (Attack/Skill/Forbidden/Power)")]
+    public CardTypeStyle[] typeStyles;
 
     [Header("호버 설정")]
     public float hoverScale = 1.6f;
@@ -65,10 +78,10 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     }
 
     // 시선/근력/약화 모디파이어가 반영된 데미지·방어도 값을 카드 설명에서 색상으로 강조.
-    // 향상(green)/감소(red)/동일(원문 유지). 새 카드 추가 시 별도 작업 불필요 — 설명 텍스트에
+    // 버프(금색)/디버프(보라색)/동일(원문 유지). 새 카드 추가 시 별도 작업 불필요 — 설명 텍스트에
     // 데미지/방어도 기본 수치를 standalone 숫자로 적기만 하면 자동 적용된다.
-    private const string ColorBuff = "#66ff99"; // 더 좋아짐
-    private const string ColorNerf = "#ff6666"; // 더 나빠짐
+    private const string ColorBuff = "#FFD700"; // 버프 (금색)
+    private const string ColorNerf = "#C77DFF"; // 디버프 (보라색)
 
     void RefreshDynamicDisplay()
     {
@@ -80,8 +93,9 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
                 ? GazeEffectManager.Instance.GetEffectiveCost(cardData, instanceId)
                 : cardData.manaCost;
             manaCostText.text = cost.ToString();
-            manaCostText.color = cost < cardData.manaCost ? new Color(0.4f, 1f, 0.6f)
-                                : cost > cardData.manaCost ? new Color(1f, 0.4f, 0.4f)
+            // 버프(마나 감소)=금색 / 디버프(마나 증가)=보라색 / 동일=흰색.
+            manaCostText.color = cost < cardData.manaCost ? new Color(1f, 0.843f, 0f)
+                                : cost > cardData.manaCost ? new Color(0.78f, 0.49f, 1f)
                                 : Color.white;
         }
 
@@ -91,7 +105,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
                 && GazeEffectManager.Instance.HiddenTextCard == cardData;
             if (hide)
             {
-                descriptionText.text = "<color=#888>???</color>";
+                descriptionText.text = "<color=#C77DFF>???</color>";
             }
             else
             {
@@ -293,12 +307,33 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
             }
         }
 
-        // 카드별 식별 아이콘 (공격=주먹, 방어=방패 등). 없으면 숨김.
+        // 카드 종류별 자동 매핑 (cost 박스 + 아이콘).
+        Sprite typeCostSprite = null;
+        Sprite typeIconSprite = null;
+        if (typeStyles != null)
+        {
+            for (int i = 0; i < typeStyles.Length; i++)
+            {
+                if (typeStyles[i].type == data.cardType)
+                {
+                    typeCostSprite = typeStyles[i].costBoxSprite;
+                    typeIconSprite = typeStyles[i].cardIconSprite;
+                    break;
+                }
+            }
+        }
+
+        if (costBoxImage != null && typeCostSprite != null)
+        {
+            costBoxImage.sprite = typeCostSprite;
+            costBoxImage.enabled = true;
+        }
+
         if (cardIconImage != null)
         {
-            if (data.cardIcon != null)
+            if (typeIconSprite != null)
             {
-                cardIconImage.sprite = data.cardIcon;
+                cardIconImage.sprite = typeIconSprite;
                 cardIconImage.enabled = true;
             }
             else

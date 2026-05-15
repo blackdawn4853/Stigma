@@ -119,6 +119,13 @@ public class BodyDefenseUI : MonoBehaviour
         lastDefense = defense;
     }
 
+    // Build 이후에도 동적으로 방패 크기 조정 (PlayerHpBarUI 등 외부 인스펙터 슬롯에서 호출).
+    public void SetShieldSize(Vector2 size)
+    {
+        shieldSize = size;
+        if (shieldRT != null) shieldRT.sizeDelta = size;
+    }
+
     void PlayFlash()
     {
         if (animCo != null) StopCoroutine(animCo);

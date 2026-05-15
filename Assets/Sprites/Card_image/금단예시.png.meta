@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: aedd03db7b1474f49944ba93c1b54924
+guid: d851e211ae2a6344c809efbadb06d867
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 912892262821732733
-    second: CostBox_0
+      213: -3186049807176832924
+    second: "\uAE08\uB2E8\uC608\uC2DC_0"
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: CostBox_0
+      name: "\uAE08\uB2E8\uC608\uC2DC_0"
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 195
-        height: 208
+        width: 1024
+        height: 1487
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: d7121b32dae3bac00800000000000000
-      internalID: 912892262821732733
+      spriteID: 468e58ea490e8c3d0800000000000000
+      internalID: -3186049807176832924
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      CostBox_0: 912892262821732733
+      "\uAE08\uB2E8\uC608\uC2DC_0": -3186049807176832924
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
