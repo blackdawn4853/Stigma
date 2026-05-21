@@ -2284,8 +2284,8 @@ MonoBehaviour:
   playerMaxHp: 50
   playerCurrentHp: 50
   playerGold: 100
+  runGazeLevel: 0
   returningFromBattle: 0
-  savedRoomGridPos: {x: 0, y: 0}
   startNodeUnlocked: 0
   bossesDefeated: 0
   startingDeck:
@@ -2302,12 +2302,20 @@ MonoBehaviour:
   strikeCount: 5
   defendCount: 5
   playerDeck: []
+  drawingLines: []
+  justLoadedFromSave: 0
+  pendingMapNodes: []
+  pendingMapLayerCount: 0
   allCards:
   - {fileID: 11400000, guid: abd1b41c0d70c4e4cb86265efe39d4d6, type: 2}
   - {fileID: 11400000, guid: 7742c7f54e93c1b4fa1507c6b2da83e0, type: 2}
   - {fileID: 11400000, guid: 9430afee2106c2041935ba8072c816c9, type: 2}
   - {fileID: 11400000, guid: b06bc49389d30b64698c84d040975dc6, type: 2}
   - {fileID: 11400000, guid: 07a652ff8a5bea54a92d88d4992e14b4, type: 2}
+  - {fileID: 11400000, guid: 78658dd807d2d471294b13201998ba52, type: 2}
+  savedNodeStates: []
+  currentNodeLayer: -1
+  currentNodeIndex: -1
 --- !u!4 &2006222313
 Transform:
   m_ObjectHideFlags: 0
