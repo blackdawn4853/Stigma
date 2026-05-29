@@ -13,7 +13,8 @@ using System.Collections;
 public class CutsceneManager : MonoBehaviour
 {
     [Header("UI 연결")]
-    public RectTransform cutsceneImage;
+    public RectTransform cutsceneImage;    // 이미지1 (검은 태양 세계관)
+    public RectTransform cutsceneImage2;   // 이미지2 (주인공 + 물에 비친 자아)
     public TextMeshProUGUI narrationText;
 
     [Header("스킵 UI (자동 생성 — Inspector에서 직접 연결도 가능)")]
@@ -54,49 +55,63 @@ public class CutsceneManager : MonoBehaviour
         public float moveDuration; // 이전 샷에서 이 샷으로 이동하는 시간
         public float hold;        // 타이핑 끝난 뒤 머무는 시간
         public Beat beat;
+        public int image;         // 1 = cutsceneImage, 2 = cutsceneImage2 (다른 이미지로 바뀌면 플래시 컷)
 
-        public Shot(string n, Vector2 f, float s, float m, float h, Beat b)
+        public Shot(string n, Vector2 f, float s, float m, float h, Beat b, int img)
         {
             narration = n; focus = f; scale = s;
-            moveDuration = m; hold = h; beat = b;
+            moveDuration = m; hold = h; beat = b; image = img;
         }
     }
+
+    // 현재 카메라가 훑고 있는 이미지(런타임에 전환)
+    private RectTransform curImg;
 
     private Shot[] shots;
 
     void Start()
     {
-        // 카메라 동선: 와이드 → 인물 → 검은 태양 → 눈(핵) → 성채 → 와이드+피날레
+        // 동선: [이미지1] 와이드→인물→검은태양→눈→성채  ⇒ 플래시 컷 ⇒  [이미지2] 인물→물웅덩이→비친 자아(피날레)
         shots = new Shot[]
         {
+            // ===== 이미지1 — 검은 태양 세계관 =====
             // ① 와이드 — 죽은 세계 전경 (느린 푸시 인)
             new Shot("세계는 이미 끝나 있었다.",
-                new Vector2(0f, 0f), 1.08f, 0f, 1.8f, Beat.None),
+                new Vector2(0f, 0f), 1.08f, 0f, 1.8f, Beat.None, 1),
 
             // ② 후드 인물(좌하단) 클로즈업
             new Shot("잿더미가 된 땅 위에, 단 하나의 그림자가 서 있었다.",
-                new Vector2(-0.16f, -0.06f), 2.0f, 3.8f, 1.8f, Beat.None),
+                new Vector2(-0.16f, -0.06f), 2.0f, 3.8f, 1.8f, Beat.None, 1),
 
             // ③ 검은 태양(우상단)으로 상승
             new Shot("신을 삼킨 검은 태양이, 하늘을 갈랐다.",
-                new Vector2(0.16f, 0.20f), 1.9f, 4.0f, 1.6f, Beat.Lightning),
+                new Vector2(0.16f, 0.20f), 1.9f, 4.0f, 1.6f, Beat.Lightning, 1),
 
             // ④ 태양의 핵 = 「눈」 클로즈업 — 응시
             new Shot("그것은 눈을 뜨고, 세상을 응시하기 시작했다.",
-                new Vector2(0.15f, 0.18f), 2.4f, 3.2f, 2.0f, Beat.RedSpike),
+                new Vector2(0.15f, 0.18f), 2.4f, 3.2f, 2.0f, Beat.RedSpike, 1),
 
             // ⑤ 무너진 성채(우하단)로 하강
             new Shot("왕도, 신앙도, 빛도 — 모두 그 시선 아래 스러졌다.",
-                new Vector2(0.19f, -0.13f), 1.9f, 3.8f, 1.8f, Beat.None),
+                new Vector2(0.19f, -0.13f), 1.9f, 3.8f, 1.8f, Beat.None, 1),
 
-            // ⑥ 다시 와이드 — 낙인을 짊어진 자 (피날레 플래시 → 암전)
+            // ===== 이미지2 — 주인공 + 물에 비친 자아 (플래시 컷으로 진입) =====
+            // 2-A 초기 구도 (인물, 우하단 촉수팔은 프레임 밖) — 나레이션
             new Shot("그리고 낙인을 짊어진 자가, 그 응시에 맞선다.",
-                new Vector2(0.02f, 0f), 1.06f, 4.0f, 2.2f, Beat.Finale),
+                new Vector2(0.12f, 0.20f), 1.7f, 0f, 1.0f, Beat.None, 2),
+
+            // 2-B 물에 비친 후드로 천천히 무빙(클로즈업 없이 같은 줌으로 팬) → 3초 정지 → (번쩍 없이) 맵으로
+            new Shot("",
+                new Vector2(-0.06f, -0.06f), 1.7f, 3.8f, 3.0f, Beat.None, 2),
         };
 
         canvasRT = cutsceneImage != null ? cutsceneImage.transform.parent as RectTransform : null;
 
         BuildCinematicOverlays();
+
+        // 이미지2는 시작 시 숨김 (플래시 컷 때 등장)
+        if (cutsceneImage2 != null) SetImageAlpha(cutsceneImage2, 0f);
+        curImg = cutsceneImage;
 
         if (skipGaugeFill == null && canvasRT != null)
             CreateSkipUI(canvasRT);
@@ -154,18 +169,25 @@ public class CutsceneManager : MonoBehaviour
     // ===================== 카메라 좌표 환산 =====================
 
     /// <summary>정규화 포커스(중심 기준 -0.5~0.5)와 배율을 anchoredPosition으로 환산.</summary>
-    Vector2 FocusToPos(Vector2 focus, float scale)
+    Vector2 FocusToPos(RectTransform img, Vector2 focus, float scale)
     {
-        float w = cutsceneImage.rect.width;
-        float h = cutsceneImage.rect.height;
+        float w = img.rect.width;
+        float h = img.rect.height;
         // 이미지를 (-focus*size*scale) 만큼 움직이면 해당 지점이 화면 중앙에 옴
         return new Vector2(-focus.x * w * scale, -focus.y * h * scale);
     }
 
-    void ApplyTransform(Vector2 basePos, float scale)
+    void ApplyTransform(RectTransform img, Vector2 basePos, float scale)
     {
-        cutsceneImage.anchoredPosition = basePos + shakeOffset;
-        cutsceneImage.localScale = Vector3.one * scale;
+        img.anchoredPosition = basePos + shakeOffset;
+        img.localScale = Vector3.one * scale;
+    }
+
+    void SetImageAlpha(RectTransform img, float a)
+    {
+        if (img == null) return;
+        Image im = img.GetComponent<Image>();
+        if (im != null) { Color c = im.color; c.a = a; im.color = c; }
     }
 
     // ===================== 메인 시퀀스 =====================
@@ -176,7 +198,8 @@ public class CutsceneManager : MonoBehaviour
         yield return null;
 
         // 시작 상태: 첫 샷 위치/배율로 세팅
-        ApplyTransform(FocusToPos(shots[0].focus, shots[0].scale), shots[0].scale);
+        curImg = cutsceneImage;
+        ApplyTransform(curImg, FocusToPos(curImg, shots[0].focus, shots[0].scale), shots[0].scale);
 
         // 레터박스 페이드 인
         StartCoroutine(FadeLetterbox(true, 1.2f));
@@ -185,15 +208,28 @@ public class CutsceneManager : MonoBehaviour
         {
             if (isSkipping) break;
             Shot shot = shots[i];
+            RectTransform shotImg = (shot.image == 2 && cutsceneImage2 != null) ? cutsceneImage2 : cutsceneImage;
 
-            // 1) 이전 샷에서 이 샷으로 부드럽게 이동
-            if (shot.moveDuration > 0f)
-                yield return StartCoroutine(MoveTo(shot.focus, shot.scale, shot.moveDuration));
+            // 1) 이동 또는 이미지 전환
+            if (shotImg != curImg)
+            {
+                // ---- 다른 이미지로 전환: 플래시(번쩍) 컷 ----
+                // 새 이미지를 시작 위치/배율로 미리 세팅 → 번쩍 절정에서 드러냄
+                ApplyTransform(shotImg, FocusToPos(shotImg, shot.focus, shot.scale), shot.scale);
+                yield return StartCoroutine(FlashCut(curImg, shotImg));
+                curImg = shotImg;
+            }
+            else if (shot.moveDuration > 0f)
+            {
+                yield return StartCoroutine(MoveTo(curImg, shot.focus, shot.scale, shot.moveDuration));
+            }
             else
-                ApplyTransform(FocusToPos(shot.focus, shot.scale), shot.scale);
+            {
+                ApplyTransform(curImg, FocusToPos(curImg, shot.focus, shot.scale), shot.scale);
+            }
 
             // 2) 도착 후 한 박자 멈춤
-            yield return WaitWithLife(0.35f, shot.focus, shot.scale, shot.scale);
+            yield return WaitWithLife(0.35f);
 
             // 3) 연출 비트
             switch (shot.beat)
@@ -206,10 +242,10 @@ public class CutsceneManager : MonoBehaviour
             // 4) 타이핑 + 머무름 — 그 동안 천천히 줌인 드리프트로 화면이 숨 쉬게
             float driftScale = shot.scale * 1.05f;
             float lifeTime = shot.narration.Length * typingSpeed + shot.hold + 0.6f;
-            StartCoroutine(Drift(shot.focus, shot.scale, driftScale, lifeTime));
+            StartCoroutine(Drift(curImg, shot.focus, shot.scale, driftScale, lifeTime));
 
             yield return StartCoroutine(TypeText(shot.narration));
-            yield return WaitWithLife(shot.hold, Vector2.zero, 0f, 0f); // 드리프트는 별도 코루틴이 처리
+            yield return WaitWithLife(shot.hold); // 드리프트는 별도 코루틴이 처리
 
             // 5) 피날레: 화이트→레드 플래시 후 암전 전환
             if (shot.beat == Beat.Finale)
@@ -229,11 +265,11 @@ public class CutsceneManager : MonoBehaviour
     }
 
     /// <summary>현재 위치/배율에서 목표 포커스/배율로 ease-in-out 이동.</summary>
-    IEnumerator MoveTo(Vector2 focus, float targetScale, float duration)
+    IEnumerator MoveTo(RectTransform img, Vector2 focus, float targetScale, float duration)
     {
-        Vector2 startPos = cutsceneImage.anchoredPosition - shakeOffset;
-        float startScale = cutsceneImage.localScale.x;
-        Vector2 endPos = FocusToPos(focus, targetScale);
+        Vector2 startPos = img.anchoredPosition - shakeOffset;
+        float startScale = img.localScale.x;
+        Vector2 endPos = FocusToPos(img, focus, targetScale);
 
         float elapsed = 0f;
         while (elapsed < duration && !isSkipping)
@@ -241,14 +277,14 @@ public class CutsceneManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
             float s = Mathf.Lerp(startScale, targetScale, t);
-            ApplyTransform(Vector2.Lerp(startPos, endPos, t), s);
+            ApplyTransform(img, Vector2.Lerp(startPos, endPos, t), s);
             yield return null;
         }
-        ApplyTransform(endPos, targetScale);
+        ApplyTransform(img, endPos, targetScale);
     }
 
     /// <summary>같은 포커스를 유지한 채 배율만 천천히 키워 켄 번스 푸시 효과.</summary>
-    IEnumerator Drift(Vector2 focus, float fromScale, float toScale, float duration)
+    IEnumerator Drift(RectTransform img, Vector2 focus, float fromScale, float toScale, float duration)
     {
         float elapsed = 0f;
         while (elapsed < duration && !isSkipping)
@@ -256,13 +292,13 @@ public class CutsceneManager : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
             float s = Mathf.Lerp(fromScale, toScale, t);
-            ApplyTransform(FocusToPos(focus, s), s);
+            ApplyTransform(img, FocusToPos(img, focus, s), s);
             yield return null;
         }
     }
 
     /// <summary>드리프트 코루틴이 도는 동안 지정 시간만 대기.</summary>
-    IEnumerator WaitWithLife(float seconds, Vector2 focus, float fromScale, float toScale)
+    IEnumerator WaitWithLife(float seconds)
     {
         float elapsed = 0f;
         while (elapsed < seconds && !isSkipping)
@@ -270,6 +306,32 @@ public class CutsceneManager : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
+    }
+
+    /// <summary>두 이미지 사이 전환 — 흰 플래시 절정에서 보이는 이미지를 교체(번쩍 컷).</summary>
+    IEnumerator FlashCut(RectTransform from, RectTransform to)
+    {
+        GameObject flashObj = new GameObject("FlashCut");
+        flashObj.transform.SetParent(canvasRT, false);
+        Image flash = flashObj.AddComponent<Image>();
+        Stretch(flash.rectTransform);
+        flash.transform.SetAsLastSibling();
+        flash.raycastTarget = false;
+
+        Color col = new Color(1f, 0.97f, 0.95f);
+        float inTime = 0.12f, outTime = 0.5f, maxAlpha = 1f;
+
+        float e = 0f;
+        while (e < inTime) { e += Time.deltaTime; flash.color = new Color(col.r, col.g, col.b, Mathf.Lerp(0f, maxAlpha, e / inTime)); yield return null; }
+
+        // 절정 — 이미지 스왑 + 살짝 셰이크
+        SetImageAlpha(from, 0f);
+        SetImageAlpha(to, 1f);
+        shakeAmount = 5f;
+
+        e = 0f;
+        while (e < outTime) { e += Time.deltaTime; flash.color = new Color(col.r, col.g, col.b, Mathf.Lerp(maxAlpha, 0f, e / outTime)); yield return null; }
+        Destroy(flashObj);
     }
 
     // ===================== 연출 효과 =====================
@@ -344,7 +406,8 @@ public class CutsceneManager : MonoBehaviour
     {
         if (canvasRT == null) return;
 
-        // 이미지를 맨 뒤로
+        // 두 일러스트를 맨 뒤로 (오버레이/텍스트보다 아래). 이미지1이 이미지2 앞에 오도록 순서 정리.
+        if (cutsceneImage2 != null) cutsceneImage2.SetAsFirstSibling();
         cutsceneImage.SetAsFirstSibling();
 
         // 비네트 (가장자리 어둡게) — 라디얼 그라데이션 텍스처 생성

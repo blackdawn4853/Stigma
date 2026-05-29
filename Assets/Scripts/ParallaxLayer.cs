@@ -25,6 +25,8 @@ public class ParallaxLayer : MonoBehaviour
     Coroutine shakeCo;
     Vector3 shakeOffset;
     Vector3 parallaxOffset;
+    Coroutine knockCo;
+    Vector3 hitOffset;   // 피격 넉백 오프셋 (방향성). LateUpdate 에서 합산되어 parallax 가 덮어쓰지 않음.
 
     void Awake() { CaptureOrigin(); }
 
@@ -45,7 +47,7 @@ public class ParallaxLayer : MonoBehaviour
     {
         if (!active) return;
         if (!originCaptured) CaptureOrigin();
-        transform.localPosition = originLocal + parallaxOffset + shakeOffset;
+        transform.localPosition = originLocal + parallaxOffset + shakeOffset + hitOffset;
     }
 
     // MouseCameraController 가 매 프레임 호출 — 카메라 오프셋을 받아 자기 factor 만큼 적용.
@@ -82,5 +84,30 @@ public class ParallaxLayer : MonoBehaviour
         }
         shakeOffset = Vector3.zero;
         shakeCo = null;
+    }
+
+    // 방향성 넉백 — dir 방향으로 amount 만큼 확 밀렸다가 부드럽게 복귀(+잔떨림).
+    // transform.position 을 직접 건드리지 않고 hitOffset 으로 처리 → parallax LateUpdate 가 덮어쓰지 않음.
+    public void Knockback(Vector2 dir, float amount, float duration)
+    {
+        if (!originCaptured) CaptureOrigin();
+        if (knockCo != null) StopCoroutine(knockCo);
+        if (amount <= 0f || duration <= 0f) { hitOffset = Vector3.zero; return; }
+        knockCo = StartCoroutine(KnockbackRoutine((Vector3)(dir.normalized * amount), duration));
+    }
+
+    IEnumerator KnockbackRoutine(Vector3 peak, float duration)
+    {
+        float t = 0f;
+        while (t < duration)
+        {
+            float back = 1f - (t / duration);            // 1→0 복귀
+            Vector2 jit = Random.insideUnitCircle * peak.magnitude * 0.25f * back;
+            hitOffset = peak * back + new Vector3(jit.x, jit.y, 0f);
+            t += Time.deltaTime;
+            yield return null;
+        }
+        hitOffset = Vector3.zero;
+        knockCo = null;
     }
 }

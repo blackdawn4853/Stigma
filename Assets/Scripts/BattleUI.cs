@@ -56,6 +56,8 @@ public class BattleUI : MonoBehaviour
     [Header("시선 게이지 UI")]
     public Slider gazeBar;
     public TextMeshProUGUI gazeText;
+    [Tooltip("새 장식형 시선 게이지(중앙→양옆 reveal). 연결되면 기존 슬라이더 대신 사용.")]
+    public GazeGaugeUI gazeGauge;
 
     [Header("덱 UI")]
     public TextMeshProUGUI deckCountText;
@@ -304,6 +306,8 @@ public class BattleUI : MonoBehaviour
         else if (playerDefenseText != null) // 폴백: playerHPBar 가 없으면 옛 텍스트 사용
             playerDefenseText.text = bm.playerDefense > 0 ? $"방어 {bm.playerDefense}" : "";
 
+        if (gazeGauge != null)
+            gazeGauge.SetGaze(bm.gazeLevel);
         if (gazeBar != null)
             gazeBar.value = (float)bm.gazeLevel / 100f;
         if (gazeText != null)
@@ -390,9 +394,9 @@ public class BattleUI : MonoBehaviour
             string amountStr = entry.Substring(lastSpace + 1);
 
             if (amountStr.StartsWith("+"))
-                increaseContent += $"{cardName} <color=red>{amountStr}</color>\n";
+                increaseContent += $"{cardName}  <color=#FF5B55><b>{amountStr}</b></color>\n";
             else if (amountStr.StartsWith("-"))
-                decreaseContent += $"{cardName} <color=green>{amountStr}</color>\n";
+                decreaseContent += $"{cardName}  <color=#6FD0E0><b>{amountStr}</b></color>\n";
         }
 
         if (increaseTitleText != null)

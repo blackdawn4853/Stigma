@@ -9,16 +9,18 @@ public class PlayerHpBarUI : MonoBehaviour
 {
     public static PlayerHpBarUI Instance { get; private set; }
 
-    [Header("앵커 위치 (Canvas 좌상단 기준 — X 양수=오른쪽, Y 음수=아래)")]
-    public Vector2 anchoredPosition = new Vector2(40f, -340f);
+    [Header("앵커 위치 (Canvas 좌하단 기준 — X 양수=오른쪽, Y 양수=위)")]
+    public Vector2 anchoredPosition = new Vector2(40f, 180f);
     [Tooltip("HP 바 크기 (가로 x 세로 픽셀)")]
     public Vector2 size = new Vector2(280f, 24f);
 
     [Header("바 외관 — 이미지 3 같은 단순 빨간 바")]
     [Tooltip("HP fill 이미지 (예: 빨간 가로 바 sprite). 비워두면 단색 fill.")]
     public Sprite fillSprite;
-    [Tooltip("Fill 색상 (sprite 가 있으면 곱해짐, 없으면 단색)")]
+    [Tooltip("Fill 색상 (방어도 없을 때, 평소 빨강)")]
     public Color fillColor = new Color(0.85f, 0.15f, 0.15f, 1f);
+    [Tooltip("방어도가 있을 때 HP fill 색 (방어 중임을 표시 — 흰/푸른색)")]
+    public Color defendedFillColor = new Color(0.62f, 0.82f, 1f, 1f);
     [Tooltip("배경 이미지 (선택). 비워두면 어두운 단색 backdrop.")]
     public Sprite backSprite;
     public Color backColor = new Color(0.08f, 0.08f, 0.08f, 0.85f);
@@ -46,6 +48,7 @@ public class PlayerHpBarUI : MonoBehaviour
     private Image backImage;
     private TextMeshProUGUI hpText;
     private BodyDefenseUI playerBodyDefense;
+    private DefenseBadgeUI defenseBadge;
 
     public static PlayerHpBarUI EnsureForBattle()
     {
@@ -91,6 +94,13 @@ public class PlayerHpBarUI : MonoBehaviour
             if (hpText != null && showHpText)
                 hpText.text = $"{Mathf.Max(0, bm.playerCurrentHp)}/{bm.playerMaxHp}";
         }
+
+        // 방어도가 있으면 HP 바 색을 푸른/흰색으로 (방어 중 표시), 없으면 평소 빨강.
+        if (fillImage != null)
+            fillImage.color = bm.playerDefense > 0 ? defendedFillColor : fillColor;
+
+        // 방어도 배지 (방패 아이콘 + 숫자) — 0 이면 자동 숨김.
+        if (defenseBadge != null) defenseBadge.SetValue(bm.playerDefense);
 
         // 플레이어가 방어도 얻을 때 슬라이드 방패 트리거 — 옛 PlayerRuntimeUI 가 비활성화돼서 끊긴 경로 복구.
         if (playerBodyDefense == null) EnsurePlayerBodyDefense();
@@ -154,9 +164,9 @@ public class PlayerHpBarUI : MonoBehaviour
             sliderRT = (RectTransform)sliderGo.transform;
         }
 
-        sliderRT.anchorMin = new Vector2(0f, 1f);
-        sliderRT.anchorMax = new Vector2(0f, 1f);
-        sliderRT.pivot = new Vector2(0f, 1f);
+        sliderRT.anchorMin = new Vector2(0f, 0f);
+        sliderRT.anchorMax = new Vector2(0f, 0f);
+        sliderRT.pivot = new Vector2(0f, 0f);
         sliderRT.anchoredPosition = anchoredPosition;
         sliderRT.sizeDelta = size;
 
@@ -250,6 +260,18 @@ public class PlayerHpBarUI : MonoBehaviour
         {
             textRT.gameObject.SetActive(false);
             hpText = null;
+        }
+
+        // 방어도 배지 — 몬스터와 동일(방패 아이콘 + 숫자). HP 바 좌측 위에 배치, 방어도 있을 때만 표시.
+        if (defenseBadge == null)
+        {
+            defenseBadge = DefenseBadgeUI.Create(sliderRT,
+                anchorMin: new Vector2(0f, 1f),
+                anchorMax: new Vector2(0f, 1f),
+                pivot: new Vector2(0.5f, 0.5f),
+                anchoredPos: new Vector2(26f, 34f),
+                size: new Vector2(52f, 52f),
+                bgColor: new Color(0.15f, 0.55f, 0.85f));
         }
     }
 

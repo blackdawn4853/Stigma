@@ -70,7 +70,9 @@ public class BattleManager : MonoBehaviour
     [Range(0f, 1f)] public float characterParallaxFactor = 0f;
 
     private bool introComplete = false;
-    private List<string> gazeChangeLog = new List<string>();
+    // 시선 변화 로그 — 같은 사유(카드/효과)는 합산해서 한 줄로 표시
+    private readonly List<string> gazeChangeOrder = new List<string>();
+    private readonly Dictionary<string, int> gazeChangeAmounts = new Dictionary<string, int>();
     private int nextTurnManaReduction = 0;
     private int regenHealAmount = 5;
     private int regenTurnsRemaining = 0;
@@ -254,14 +256,31 @@ public class BattleManager : MonoBehaviour
 
         if (CombatEffectsManager.Instance != null)
         {
+            // 데미지 숫자: 발밑이라 너무 낮던 문제 수정 → 스프라이트 상단(머리/가슴, 앞쪽)에 띄움.
             Vector3 pos = playerObject != null ? playerObject.transform.position : Vector3.zero;
+            if (playerObject != null)
+            {
+                var psr = playerObject.GetComponent<SpriteRenderer>();
+                if (psr != null)
+                {
+                    float front = playerObject.transform.localScale.x < 0f ? -1f : 1f; // 바라보는 방향
+                    Vector3 target = new Vector3(
+                        psr.bounds.center.x + psr.bounds.size.x * 0.12f * front,
+                        psr.bounds.max.y - psr.bounds.size.y * 0.12f,
+                        pos.z);
+                    // ShowDamagePopup 이 popupSpawnOffset 을 더하므로 미리 빼서 정확히 target 에 뜨게.
+                    pos = target - CombatEffectsManager.Instance.popupSpawnOffset;
+                }
+            }
             CombatEffectsManager.Instance.ShowDamagePopup(pos, amount);
         }
 
-        if (CombatCameraEffect.Instance != null && playerObject != null)
+        // 플레이어 피격: 카메라 줌인은 어색해서 제거. 히트스톱 + 움찔 흔들림 + 히트플래시/팝업으로 타격감 표현.
+        if (CombatCameraEffect.Instance != null)
         {
-            var sr = playerObject.GetComponent<SpriteRenderer>();
-            CombatCameraEffect.Instance.PlayerHitCloseup(playerObject.transform, sr);
+            CombatCameraEffect.Instance.HitStop();
+            if (playerObject != null)
+                CombatCameraEffect.Instance.PlayerFlinch(playerObject.transform);
         }
     }
 
@@ -288,7 +307,7 @@ public class BattleManager : MonoBehaviour
         currentMana = maxMana;
         nextTurnManaReduction = 0;
         regenTurnsRemaining = 0;
-        gazeChangeLog.Clear();
+        ClearGazeChangeLog();
 
         // 몬스터 초기화 — sprite override / scale 적용 (위치는 아직 spawn 그대로)
         for (int i = 0; i < monsters.Count; i++)
@@ -947,8 +966,8 @@ public class BattleManager : MonoBehaviour
         }
 
         if (BattleUI.Instance != null)
-            BattleUI.Instance.ShowGazeLog(gazeChangeLog);
-        gazeChangeLog.Clear();
+            BattleUI.Instance.ShowGazeLog(BuildGazeChangeLog());
+        ClearGazeChangeLog();
 
         // 플레이어 버프/디버프 턴수 감소: MonsterTurn 이전에 처리해야
         // 이번 MonsterTurn 에서 새로 걸리는 디버프(약화 등)가 즉시 0턴으로 사라지지 않는다.
@@ -1067,8 +1086,12 @@ public class BattleManager : MonoBehaviour
 
         if (actual != 0 && reason != "")
         {
-            string sign = actual > 0 ? "+" : "";
-            gazeChangeLog.Add($"{reason} {sign}{actual}");
+            if (!gazeChangeAmounts.ContainsKey(reason))
+            {
+                gazeChangeAmounts[reason] = 0;
+                gazeChangeOrder.Add(reason);
+            }
+            gazeChangeAmounts[reason] += actual;
         }
 
         if (GazeEffectManager.Instance != null)
@@ -1079,6 +1102,26 @@ public class BattleManager : MonoBehaviour
             BattleUI.Instance.FlashGazeBar(amount > 0);
             BattleUI.Instance.UpdateUI();
         }
+    }
+
+    // 누적된 시선 변화를 사유별 합산 문자열 목록으로 변환 (예: "금단의 시선 +20")
+    List<string> BuildGazeChangeLog()
+    {
+        var list = new List<string>();
+        foreach (string reason in gazeChangeOrder)
+        {
+            int amt = gazeChangeAmounts[reason];
+            if (amt == 0) continue;
+            string sign = amt > 0 ? "+" : "";
+            list.Add($"{reason} {sign}{amt}");
+        }
+        return list;
+    }
+
+    void ClearGazeChangeLog()
+    {
+        gazeChangeOrder.Clear();
+        gazeChangeAmounts.Clear();
     }
 
     void CheckMonsterDeath()

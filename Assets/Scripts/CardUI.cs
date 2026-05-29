@@ -33,6 +33,8 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public float hoverScale = 1.6f;
     public float hoverSpeed = 8f;
     public float hoverYOffset = 80f;
+    [Tooltip("LayoutGroup 아래(리워드/상점)에서의 호버 — 위로 안 올리고 이 배율로 살짝만 확대")]
+    public float compactHoverScale = 1.12f;
 
     [Header("드래그 설정")]
     public float arrowTriggerDistance = 80f;
@@ -48,6 +50,8 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
 
     private bool isDragging = false;
     private bool isArrowMode = false;
+    private bool hovering = false;
+    private bool homeSet = false;       // PlayerHand.ArrangeHand 가 home 을 지정했는지
     private Vector2 dragStartScreenPos;
     private Canvas canvas;
 
@@ -56,14 +60,33 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
         originalScale = transform.localScale;
         targetScale = originalScale;
         canvas = GetComponentInParent<Canvas>();
-        StartCoroutine(InitPosition());
+        // PlayerHand 가 SetHome 으로 직접 배치하지 않는 경우(리워드/상점 등 LayoutGroup 사용)
+        // → 1프레임 뒤 레이아웃이 적용된 위치를 home 으로 캡처. (없으면 전부 (0,0)에 겹침)
+        if (!homeSet)
+        {
+            originalPosition = transform.localPosition;
+            targetPosition = originalPosition;
+            StartCoroutine(InitPosition());
+        }
     }
 
     System.Collections.IEnumerator InitPosition()
     {
         yield return null;
-        originalPosition = transform.localPosition;
-        targetPosition = originalPosition;
+        if (!homeSet) // 그 사이 PlayerHand 가 SetHome 했으면 그대로 둠
+        {
+            originalPosition = transform.localPosition;
+            targetPosition = originalPosition;
+        }
+    }
+
+    // PlayerHand 가 손패 배치 시 호출 — 이 카드의 정위치(home)를 지정. Update 가 여기로 부드럽게 모임.
+    public void SetHome(Vector3 pos)
+    {
+        originalPosition = pos;
+        homeSet = true;
+        if (!isDragging && !hovering)
+            targetPosition = pos;
     }
 
     void Update()
@@ -165,8 +188,23 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     {
         if (!isDragging)
         {
-            targetScale = originalScale * hoverScale;
-            targetPosition = originalPosition + new Vector3(0, hoverYOffset, 0);
+            hovering = true;
+            var lg = GetComponentInParent<UnityEngine.UI.LayoutGroup>();
+            bool layoutManaged = lg != null && lg.enabled; // 리워드/상점 = LayoutGroup 활성
+
+            if (layoutManaged)
+            {
+                // 위로 안 올리고 살짝만 확대 (제자리). sibling 변경도 안 함(레이아웃 재배치 방지).
+                targetScale = originalScale * compactHoverScale;
+                targetPosition = originalPosition;
+            }
+            else
+            {
+                // 전투 손패 = 위로 크게 솟아오름 + 맨 앞으로.
+                targetScale = originalScale * hoverScale;
+                targetPosition = originalPosition + new Vector3(0, hoverYOffset, 0);
+                transform.SetAsLastSibling();
+            }
         }
     }
 
@@ -174,6 +212,7 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     {
         if (!isDragging)
         {
+            hovering = false;
             targetScale = originalScale;
             targetPosition = originalPosition;
         }

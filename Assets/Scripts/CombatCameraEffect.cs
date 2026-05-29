@@ -39,9 +39,23 @@ public class CombatCameraEffect : MonoBehaviour
     [Tooltip("26+ 데미지 — 매우 강한 흔들림")]
     [Range(0f, 1f)] public float intensityTier4 = 0.5f;
 
+    [Header("히트스톱 (피격/타격 임팩트)")]
+    [Tooltip("타격 순간 시간을 멈추는 길이 (초, realtime). 0이면 비활성")]
+    [Range(0f, 0.2f)] public float hitStopDuration = 0.06f;
+
+    [Header("플레이어 피격 반응 (넉백 움찔)")]
+    [Tooltip("플레이어 피격 시 반응 지속 시간 (초)")]
+    [Range(0f, 0.6f)] public float flinchDuration = 0.28f;
+    [Tooltip("피격 시 뒤로 밀리는 거리 + 잔떨림 진폭 (월드 단위). 카메라가 멀면 키울 것.")]
+    [Range(0f, 1.5f)] public float flinchAmount = 0.5f;
+
     // ─── 런타임 ─────────────────────────────────────────────────
     Camera cam;
     Coroutine closeupCo;
+    Coroutine hitStopCo;
+    Coroutine flinchCo;
+    Vector3 flinchBase;
+    bool flinching;
     bool closeupActive;
     public bool IsCloseupActive => closeupActive;
     Vector3 snapCamPos;
@@ -80,6 +94,7 @@ public class CombatCameraEffect : MonoBehaviour
     {
         if (Instance == this) Instance = null;
         if (closeupActive) RestoreSnapshot();
+        if (hitStopCo != null) Time.timeScale = 1f;   // 히트스톱 중 파괴되어도 시간 복구
     }
 
     Camera ResolveCamera()
@@ -186,6 +201,63 @@ public class CombatCameraEffect : MonoBehaviour
         if (damage <= 15) return intensityTier2;
         if (damage <= 25) return intensityTier3;
         return intensityTier4;
+    }
+
+    // ─── 히트스톱 — 타격 순간 짧게 시간 정지 (피격·타격 공용) ──────
+    public void HitStop() => HitStop(hitStopDuration);
+
+    public void HitStop(float seconds)
+    {
+        if (seconds <= 0f) return;
+        if (hitStopCo != null) StopCoroutine(hitStopCo);
+        hitStopCo = StartCoroutine(HitStopRoutine(seconds));
+    }
+
+    IEnumerator HitStopRoutine(float seconds)
+    {
+        Time.timeScale = 0f;
+        yield return new WaitForSecondsRealtime(seconds);
+        Time.timeScale = 1f;   // 전투는 항상 정상 속도로 복귀
+        hitStopCo = null;
+    }
+
+    // ─── 플레이어 피격 움찔 (카메라 줌인 대신 스프라이트만 흔듦) ──────
+    public void PlayerFlinch(Transform target)
+    {
+        if (target == null || flinchDuration <= 0f || flinchAmount <= 0f) return;
+
+        // 플레이어엔 런타임에 ParallaxLayer 가 붙어 매 프레임 localPosition 을 덮어씀.
+        // → transform 직접 이동은 무효. ParallaxLayer 의 넉백 오프셋(LateUpdate 합산)으로 처리해야 보임.
+        var pl = target.GetComponent<ParallaxLayer>();
+        if (pl != null)
+        {
+            pl.Knockback(Vector2.left, flinchAmount, flinchDuration); // 몬스터(오른쪽) 반대편으로 밀림
+            return;
+        }
+
+        // 폴백: ParallaxLayer 가 없으면 transform 직접 흔듦.
+        if (flinching && flinchCo != null) { StopCoroutine(flinchCo); target.position = flinchBase; }
+        flinchBase = target.position;
+        flinching = true;
+        flinchCo = StartCoroutine(FlinchRoutine(target));
+    }
+
+    IEnumerator FlinchRoutine(Transform t)
+    {
+        // 공격은 몬스터(오른쪽)에서 오므로 왼쪽으로 확 밀렸다가 부드럽게 복귀 + 잔떨림.
+        Vector3 knock = new Vector3(-flinchAmount, 0f, 0f);
+        float e = 0f;
+        while (e < flinchDuration)
+        {
+            e += Time.deltaTime;   // 히트스톱(timeScale 0) 동안엔 멈췄다가 이어짐
+            float back = 1f - Mathf.Clamp01(e / flinchDuration); // 1→0 (복귀)
+            Vector2 jit = Random.insideUnitCircle * flinchAmount * 0.45f * back;
+            t.position = flinchBase + knock * back + new Vector3(jit.x, jit.y, 0f);
+            yield return null;
+        }
+        t.position = flinchBase;
+        flinching = false;
+        flinchCo = null;
     }
 
     static float SmoothStep01(float t) => t * t * (3f - 2f * t);

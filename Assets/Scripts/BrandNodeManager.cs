@@ -24,7 +24,9 @@ public class BrandNodeManager : MonoBehaviour
     public Canvas sceneCanvas;
 
     [Header("카드 비주얼")]
-    [Tooltip("덱 카드 항목에 사용할 통일 스프라이트 (Assets/Sprites/card1.png 권장). 추후 카드별로 분기 가능.")]
+    [Tooltip("덱 카드 항목에 사용할 실제 카드 프리팹 (Assets/Prefabs/CardPrefab.prefab). 연결되면 인게임 카드와 동일하게(일러스트+코스트박스+아이콘+이름+설명) 표시.")]
+    public GameObject cardPrefab;
+    [Tooltip("(폴백) cardPrefab 미연결 시 사용할 통일 스프라이트.")]
     public Sprite cardSprite;
     public Color cardSelectedColor = new Color(1f, 0.85f, 0.3f, 1f);
 
@@ -598,6 +600,25 @@ public class BrandNodeManager : MonoBehaviour
         le.preferredWidth = 180f;
         le.preferredHeight = 240f;
 
+        // 실제 게임 카드 프리팹으로 표시 — 일러스트 + 코스트박스 + 아이콘 + 이름 + 설명 전부 인게임과 동일.
+        if (cardPrefab != null)
+        {
+            var cardGO = Instantiate(cardPrefab, itemGO.transform);
+            var cardRt = (RectTransform)cardGO.transform;
+            cardRt.anchorMin = cardRt.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRt.pivot = new Vector2(0.5f, 0.5f);
+            cardRt.anchoredPosition = Vector2.zero;
+            cardRt.sizeDelta = new Vector2(180f, 240f);
+            cardRt.localScale = Vector3.one * 0.92f; // 프레임(등급색/선택강조)이 테두리로 보이게 살짝 축소
+            var cui = cardGO.GetComponent<CardUI>();
+            if (cui != null) { cui.Setup(card); cui.enabled = false; } // Setup 후 비활성(드래그/Update 차단)
+            var cg = cardGO.GetComponent<CanvasGroup>();
+            if (cg == null) cg = cardGO.AddComponent<CanvasGroup>();
+            cg.blocksRaycasts = false; cg.interactable = false; // 클릭은 프레임 버튼이 받음
+            return new CardItemUI { root = itemGO, frameBg = frameBg, baseFrameColor = baseFrameColor };
+        }
+
+        // (폴백) cardPrefab 미연결 시 수동 빌드
         // 카드 스프라이트 (프레임 안쪽 4px 여백) — 카드 전체 비주얼
         var artGO = new GameObject("CardArt", typeof(RectTransform), typeof(Image));
         artGO.transform.SetParent(itemGO.transform, false);
@@ -607,9 +628,10 @@ public class BrandNodeManager : MonoBehaviour
         art.offsetMin = new Vector2(4f, 4f);
         art.offsetMax = new Vector2(-4f, -4f);
         var artImg = artGO.GetComponent<Image>();
-        if (cardSprite != null)
+        // 카드별 일러스트(CardData.cardImage)를 사용. (이전엔 공용 cardSprite 필드를 참조해 전부 빈칸이었음)
+        if (card.cardImage != null)
         {
-            artImg.sprite = cardSprite;
+            artImg.sprite = card.cardImage;
             artImg.color = Color.white;
             artImg.preserveAspect = false;
         }

@@ -588,9 +588,9 @@ MonoBehaviour:
   - type: 3
     costBoxSprite: {fileID: 0}
     cardIconSprite: {fileID: 0}
-  hoverScale: 1.6
+  hoverScale: 1.9
   hoverSpeed: 8
-  hoverYOffset: 70
+  hoverYOffset: 230
   arrowTriggerDistance: 80
 --- !u!1 &8412813261721471233
 GameObject:
