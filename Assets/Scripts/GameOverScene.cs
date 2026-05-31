@@ -131,10 +131,9 @@ public class GameOverScene : MonoBehaviour
             btn.colors = colors;
             label.raycastTarget = false;
 
-            // 클릭 affordance — 작은 힌트
-            var hint = MakeText(parent, "클릭하여 확인", 18, FontStyles.Normal,
-                new Color(0.62f, 0.56f, 0.40f), pos + new Vector2(0f, -54f), new Vector2(320f, 28f));
-            hint.raycastTarget = false;
+            // 클릭 affordance — 오른쪽 삼각형 (폰트 글리프 대신 메시로 그림)
+            MakeTriangle(parent, pos + new Vector2(86f, -16f), new Vector2(22f, 28f),
+                new Color(0.95f, 0.82f, 0.45f));
         }
     }
 
@@ -402,6 +401,20 @@ public class GameOverScene : MonoBehaviour
         tmp.outlineWidth = width;
     }
 
+    // 오른쪽을 가리키는 삼각형 (▶) — 메시로 직접 그려 폰트 글리프 의존 제거
+    void MakeTriangle(Transform parent, Vector2 pos, Vector2 size, Color color)
+    {
+        var go = new GameObject("Triangle", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        var tri = go.AddComponent<UITriangle>();
+        tri.color = color;
+        tri.raycastTarget = false;
+    }
+
     void MakeDivider(Transform parent, Vector2 pos, float width)
     {
         var img = MakeImage(parent, "Divider", new Color(0.4f, 0.38f, 0.42f, 0.45f));
@@ -431,5 +444,23 @@ public class GameOverScene : MonoBehaviour
         rt.pivot = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = size;
         rt.anchoredPosition = Vector2.zero;
+    }
+}
+
+// 오른쪽을 가리키는 채워진 삼각형 UI. 스프라이트 없이 메시로 그려 어떤 크기에서도 선명.
+public class UITriangle : MaskableGraphic
+{
+    protected override void OnPopulateMesh(VertexHelper vh)
+    {
+        vh.Clear();
+        Rect r = GetPixelAdjustedRect();
+        var v = UIVertex.simpleVert;
+        v.color = color;
+
+        v.position = new Vector3(r.xMin, r.yMax, 0f); vh.AddVert(v);                    // 0 좌상
+        v.position = new Vector3(r.xMin, r.yMin, 0f); vh.AddVert(v);                    // 1 좌하
+        v.position = new Vector3(r.xMax, (r.yMin + r.yMax) * 0.5f, 0f); vh.AddVert(v);  // 2 우중
+
+        vh.AddTriangle(0, 1, 2);
     }
 }
