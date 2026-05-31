@@ -11,6 +11,12 @@
 
 ---
 
+## 2026-05-31 — [맥북] 테스트 카드 + 폰트 아틀라스 커밋
+
+- `Assets/Cards/Card_Test 1.asset` 추가: 시선 게이지 증가 테스트용 카드(effectType 5, gazeChange).
+- `Assets/Fonts/AppleMyungjo SDF.asset` 갱신: 컷씬 텍스트용 글리프 아틀라스 재생성.
+- (`.DS_Store`, `.claude/settings.local.json`은 게임 무관이라 커밋 제외)
+
 ## 2026-05-29 — [맥북] 회귀버그 수정: 리워드씬 카드 겹침
 
 - 손패 수정 때 `CardUI.InitPosition`(레이아웃 적용 후 1프레임 뒤 위치 캡처) 제거 → 리워드/상점 카드(LayoutGroup 의존)가 전부 (0,0)에 겹침.
