@@ -14,6 +14,7 @@
 ## 2026-05-31 — [맥북] 테스트 카드 + 폰트 아틀라스 커밋
 
 - `Assets/Cards/Card_Test 1.asset` 추가: 시선 게이지 증가 테스트용 카드(effectType 5, gazeChange).
+  - → 직후 삭제: 중복본이라 실제 사용하는 `Card_Test.asset`만 남김.
 - `Assets/Fonts/AppleMyungjo SDF.asset` 갱신: 컷씬 텍스트용 글리프 아틀라스 재생성.
 - (`.DS_Store`, `.claude/settings.local.json`은 게임 무관이라 커밋 제외)
 
