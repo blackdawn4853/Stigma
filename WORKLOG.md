@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-05-31 — [맥북] 게임오버 화면 신규 구현
+
+- **목적**: 사망 시 조용히 NodeMap 리셋되던 것 → 슬더스식 깔끔한 게임오버 화면 추가.
+- **새 `GameOverScene.cs` + `GameOverScene.unity`** (빌드세팅 등록):
+  - "GAME OVER"(붉은색+아웃라인, 명조체) + **랜덤 사망 글귀 5종** 중 1개.
+  - 스탯: 처치한 보스 / 골드 / 덱(N장). **덱 클릭 시 팝업**으로 현재 덱 카드 확인(낙인 노드 카드 그리드 재활용 — CardPrefab+CardUI, 보기 전용).
+  - **타이틀로** 버튼: `ResetForTitle()`(세이브 삭제+런 완전 초기화) 후 FadeManager 로 MainMenu 페이드 이동. 진입 시 CanvasGroup 페이드 인.
+  - UI 전부 코드 절차 생성(프로젝트 관례). 폰트는 AppleMyungjo SDF 연결.
+- **`GameManager` 수정**:
+  - `GameOver()` → 상태 보존한 채 `GameOverScene` 로드(화면에서 골드/보스/덱 표시해야 하므로). 초기화는 '타이틀로'가 수행.
+  - `ResetForTitle()` 추가. Awake 에서 baseMaxHp/baseGold 캡처(초기화 기준값).
+- **글리프 주의**: AppleMyungjo 엔 ▸/✕ 글리프 없음(두부) → 화살표 제거+"클릭하여 확인" 힌트, 닫기버튼 "X"로 교체.
+- **검증**: Play 캡처로 레이아웃/글귀/글리프 확인 완료(에러 0). 실제 사망 흐름(전투에서 HP 0) 연결은 BattleManager.CheckPlayerDeath→GameOver() 그대로라 자동.
+
 ## 2026-05-31 — [맥북] 테스트 카드 + 폰트 아틀라스 커밋
 
 - `Assets/Cards/Card_Test 1.asset` 추가: 시선 게이지 증가 테스트용 카드(effectType 5, gazeChange).

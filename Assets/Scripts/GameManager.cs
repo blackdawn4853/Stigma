@@ -93,11 +93,17 @@ public class GameManager : MonoBehaviour
 
     private string SavePath => Application.persistentDataPath + "/save.json";
 
+    // 런 초기화(사망→타이틀) 시 되돌릴 기준값 — 게임 시작 시 인스펙터 값으로 캡처
+    private int baseMaxHp = 100;
+    private int baseGold = 100;
+
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
+            baseMaxHp = playerMaxHp;
+            baseGold = playerGold;
             DontDestroyOnLoad(gameObject);
             InitializeDeck();
         }
@@ -130,17 +136,29 @@ public class GameManager : MonoBehaviour
         Save();
     }
 
+    // 사망 — 런 상태(골드/보스수/덱)는 그대로 둔 채 게임오버 화면으로.
+    // (화면에서 표시해야 하므로 초기화는 '타이틀로' 버튼이 ResetForTitle() 로 수행)
     public void GameOver()
     {
-        playerCurrentHp = playerMaxHp;
-        playerGold = 100;
+        playerCurrentHp = 0;
+        SceneManager.LoadScene("GameOverScene");
+    }
+
+    // 게임오버 화면의 '타이틀로' 버튼 — 죽었으므로 세이브 삭제 + 런 완전 초기화 후 타이틀로.
+    public void ResetForTitle()
+    {
+        DeleteSave();
+        playerMaxHp = baseMaxHp;
+        playerCurrentHp = baseMaxHp;
+        playerGold = baseGold;
         runGazeLevel = 0;
+        startNodeUnlocked = false;
+        bossesDefeated = 0;
         InitializeDeck();
         savedNodeStates.Clear();
         currentNodeLayer = -1;
         currentNodeIndex = -1;
-        drawingLines.Clear(); // 새 런 → 새 맵 → 드로잉 초기화
-        SceneManager.LoadScene("NodeMap");
+        drawingLines.Clear();
     }
 
     public void AddCardToDeck(CardData card)
