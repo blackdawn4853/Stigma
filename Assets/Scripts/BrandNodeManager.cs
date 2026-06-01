@@ -158,7 +158,103 @@ public class BrandNodeManager : MonoBehaviour
             }
         }
 
+        // 씬 프리빌트 UI는 글자/크기가 작아 가독성이 떨어짐 → 런타임에 약 1.35배로 확대 + 행 중앙 재정렬.
+        ApplyLargerLayout();
+
         return true;
+    }
+
+    // 프리빌트 씬 UI(제목/부제/효과카드/버튼)를 가독성 위해 일괄 확대하고
+    // 효과 카드 행을 정확히 화면 중앙으로 재정렬한다. (모달은 절차생성 코드에서 별도 확대)
+    void ApplyLargerLayout()
+    {
+        // 제목 / 부제
+        SetFontOf(root.Find("Title"), 84f);
+        var sub = root.Find("Subtitle");
+        SetFontOf(sub, 34f);
+        if (sub != null)
+        {
+            var srt = sub.GetComponent<RectTransform>();
+            srt.sizeDelta = new Vector2(1500f, 64f);
+            srt.anchoredPosition = new Vector2(0f, -195f);
+        }
+
+        // 효과 카드 5개 확대 (220x240 → 290x330, 폰트 Threshold/Name/Desc 키움)
+        foreach (var kv in effectCards)
+        {
+            var card = kv.Value;
+            if (card.root == null) continue;
+            card.root.GetComponent<RectTransform>().sizeDelta = new Vector2(290f, 330f);
+
+            if (card.nameText != null)
+            {
+                card.nameText.fontSize = 30f;
+                var nrt = card.nameText.rectTransform;
+                nrt.sizeDelta = new Vector2(-16f, 86f);
+                nrt.anchoredPosition = new Vector2(0f, 18f);
+            }
+            if (card.descText != null) card.descText.fontSize = 20f;
+
+            var thr = card.root.transform.Find("Threshold");
+            SetFontOf(thr, 42f);
+            if (thr != null) thr.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 52f);
+
+            if (card.lockX != null)
+            {
+                var lx = card.lockX.GetComponent<TextMeshProUGUI>();
+                if (lx != null) lx.fontSize = 180f;
+            }
+        }
+
+        // 효과 카드 행: 중앙 재정렬(x=0) + 위치/간격 조정.
+        // 행 폭을 콘텐츠 총폭과 정확히 일치시키고 anchoredPos.x=0 → 화면 정중앙 정렬.
+        // (폭 0 + MiddleCenter 는 미세하게 치우치므로 폭을 명시한다.)
+        const float cardW = 290f, spacing = 26f;
+        var row = root.Find("EffectsRow");
+        if (row != null)
+        {
+            var hlg = row.GetComponent<HorizontalLayoutGroup>();
+            if (hlg != null)
+            {
+                hlg.spacing = spacing;
+                hlg.padding = new RectOffset(0, 0, 0, 0);
+                hlg.childAlignment = TextAnchor.MiddleCenter;
+                hlg.childControlWidth = false; hlg.childControlHeight = false;
+                hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+            }
+            int n = effectCards.Count;
+            float totalW = n > 0 ? n * cardW + (n - 1) * spacing : 0f;
+            var rrt = row.GetComponent<RectTransform>();
+            rrt.anchoredPosition = new Vector2(0f, -300f);
+            rrt.sizeDelta = new Vector2(totalW, 330f);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(rrt);
+        }
+
+        // 하단 버튼 2개 확대 + 재배치 (행이 커진 만큼 아래로)
+        ResizeButton(root.Find("CardRemoveButton"), new Vector2(480f, 104f), new Vector2(0f, -680f), 36f);
+        ResizeButton(root.Find("ReturnButton"),     new Vector2(480f, 104f), new Vector2(0f, -812f), 36f);
+    }
+
+    void SetFontOf(Transform t, float size)
+    {
+        if (t == null) return;
+        var tmp = t.GetComponent<TextMeshProUGUI>();
+        if (tmp != null) tmp.fontSize = size;
+    }
+
+    void ResizeButton(Transform btn, Vector2 size, Vector2 pos, float labelFont)
+    {
+        if (btn == null) return;
+        var rt = btn.GetComponent<RectTransform>();
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+        SetFontOf(btn.Find("Label"), labelFont);
+        var lx = btn.Find("LockX");
+        if (lx != null)
+        {
+            var t = lx.GetComponent<TextMeshProUGUI>();
+            if (t != null) t.fontSize = 80f;
+        }
     }
 
     TextMeshProUGUI SafeGetText(Transform t) => t != null ? t.GetComponent<TextMeshProUGUI>() : null;
@@ -423,12 +519,12 @@ public class BrandNodeManager : MonoBehaviour
         modalRoot = dim.gameObject;
 
         var panel = NewUI("Panel", dim.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f));
-        panel.rectTransform.sizeDelta = new Vector2(900f, 700f);
+        panel.rectTransform.sizeDelta = new Vector2(1120f, 820f);
         panel.image.color = modalBgColor;
 
-        AddText(panel.transform, $"{threshold} 구간 효과 교체", new Vector2(0f, -20f),
-            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 32, FontStyles.Bold,
-            new Color(1f, 0.85f, 0.95f), new Vector2(800f, 50f));
+        AddText(panel.transform, $"{threshold} 구간 효과 교체", new Vector2(0f, -24f),
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 42, FontStyles.Bold,
+            new Color(1f, 0.85f, 0.95f), new Vector2(1000f, 64f));
 
         var listGO = new GameObject("List", typeof(RectTransform));
         listGO.transform.SetParent(panel.transform, false);
@@ -436,10 +532,10 @@ public class BrandNodeManager : MonoBehaviour
         lrt.anchorMin = new Vector2(0.5f, 1f);
         lrt.anchorMax = new Vector2(0.5f, 1f);
         lrt.pivot = new Vector2(0.5f, 1f);
-        lrt.anchoredPosition = new Vector2(0f, -90f);
-        lrt.sizeDelta = new Vector2(800f, 0f);
+        lrt.anchoredPosition = new Vector2(0f, -116f);
+        lrt.sizeDelta = new Vector2(1020f, 0f);
         var vlg = listGO.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 8;
+        vlg.spacing = 12;
         vlg.childControlWidth = false;
         vlg.childControlHeight = false;
         vlg.childForceExpandWidth = false;
@@ -461,8 +557,8 @@ public class BrandNodeManager : MonoBehaviour
         if (!anyOption)
         {
             AddText(listGO.transform, "교체 가능한 다른 효과가 없습니다.", Vector2.zero,
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 22, FontStyles.Italic,
-                new Color(0.85f, 0.7f, 0.7f), new Vector2(700f, 60f));
+                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 28, FontStyles.Italic,
+                new Color(0.85f, 0.7f, 0.7f), new Vector2(900f, 70f));
         }
 
         BuildModalCloseButton(panel.transform);
@@ -494,9 +590,9 @@ public class BrandNodeManager : MonoBehaviour
         panel.image.color = modalBgColor;
 
         // Title
-        AddText(panel.transform, "제거할 카드 선택", new Vector2(0f, -20f),
-            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 36, FontStyles.Bold,
-            new Color(1f, 0.85f, 0.95f), new Vector2(1300f, 60f));
+        AddText(panel.transform, "제거할 카드 선택", new Vector2(0f, -26f),
+            new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), 44, FontStyles.Bold,
+            new Color(1f, 0.85f, 0.95f), new Vector2(1340f, 72f));
 
         // ScrollView (Footer와 분리: 패널 상단~하단 100px 위까지)
         BuildCardScrollView(panel.transform);
@@ -513,8 +609,8 @@ public class BrandNodeManager : MonoBehaviour
         srt.anchorMin = new Vector2(0.5f, 1f);
         srt.anchorMax = new Vector2(0.5f, 1f);
         srt.pivot = new Vector2(0.5f, 1f);
-        srt.anchoredPosition = new Vector2(0f, -90f);
-        srt.sizeDelta = new Vector2(1300f, 660f);
+        srt.anchoredPosition = new Vector2(0f, -100f);
+        srt.sizeDelta = new Vector2(1340f, 656f);
         var sbg = scrollGO.GetComponent<Image>();
         sbg.color = new Color(0.05f, 0.03f, 0.08f, 0.8f);
 
@@ -542,9 +638,9 @@ public class BrandNodeManager : MonoBehaviour
         crt.sizeDelta = new Vector2(0f, 0f);
 
         var grid = contentGO.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(180f, 240f);
-        grid.spacing = new Vector2(40f, 40f);
-        grid.padding = new RectOffset(40, 40, 40, 40);
+        grid.cellSize = new Vector2(224f, 300f);
+        grid.spacing = new Vector2(30f, 34f);
+        grid.padding = new RectOffset(28, 28, 28, 28);
         grid.childAlignment = TextAnchor.UpperCenter;
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
         grid.constraintCount = 5;
@@ -589,7 +685,7 @@ public class BrandNodeManager : MonoBehaviour
         var itemGO = new GameObject("CardItem", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
         itemGO.transform.SetParent(parent, false);
         var rt = itemGO.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(180f, 240f);
+        rt.sizeDelta = new Vector2(224f, 300f);
         var frameBg = itemGO.GetComponent<Image>();
         Color baseFrameColor = card.GetRarityColor();
         frameBg.color = baseFrameColor;
@@ -597,8 +693,8 @@ public class BrandNodeManager : MonoBehaviour
         btn.targetGraphic = frameBg;
         btn.onClick.AddListener(() => onClick?.Invoke());
         var le = itemGO.GetComponent<LayoutElement>();
-        le.preferredWidth = 180f;
-        le.preferredHeight = 240f;
+        le.preferredWidth = 224f;
+        le.preferredHeight = 300f;
 
         // 실제 게임 카드 프리팹으로 표시 — 일러스트 + 코스트박스 + 아이콘 + 이름 + 설명 전부 인게임과 동일.
         if (cardPrefab != null)
@@ -608,7 +704,7 @@ public class BrandNodeManager : MonoBehaviour
             cardRt.anchorMin = cardRt.anchorMax = new Vector2(0.5f, 0.5f);
             cardRt.pivot = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = Vector2.zero;
-            cardRt.sizeDelta = new Vector2(180f, 240f);
+            cardRt.sizeDelta = new Vector2(224f, 300f);
             cardRt.localScale = Vector3.one * 0.92f; // 프레임(등급색/선택강조)이 테두리로 보이게 살짝 축소
             var cui = cardGO.GetComponent<CardUI>();
             if (cui != null) { cui.Setup(card); cui.enabled = false; } // Setup 후 비활성(드래그/Update 차단)
@@ -703,11 +799,11 @@ public class BrandNodeManager : MonoBehaviour
         frt.anchorMin = new Vector2(0.5f, 0f);
         frt.anchorMax = new Vector2(0.5f, 0f);
         frt.pivot = new Vector2(0.5f, 0f);
-        frt.anchoredPosition = new Vector2(0f, 30f);
-        frt.sizeDelta = new Vector2(900f, 80f);
+        frt.anchoredPosition = new Vector2(0f, 34f);
+        frt.sizeDelta = new Vector2(1000f, 96f);
 
         var hlg = footerGO.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 40f;
+        hlg.spacing = 48f;
         hlg.childAlignment = TextAnchor.MiddleCenter;
         hlg.childControlWidth = false;
         hlg.childControlHeight = false;
@@ -718,7 +814,7 @@ public class BrandNodeManager : MonoBehaviour
         var delGO = new GameObject("DeleteButton", typeof(RectTransform), typeof(Image), typeof(Button));
         delGO.transform.SetParent(footerGO.transform, false);
         var drt = delGO.GetComponent<RectTransform>();
-        drt.sizeDelta = new Vector2(380f, 70f);
+        drt.sizeDelta = new Vector2(440f, 84f);
         var dimg = delGO.GetComponent<Image>();
         dimg.color = new Color(0.7f, 0.2f, 0.2f, 1f);
         var dbtn = delGO.GetComponent<Button>();
@@ -736,7 +832,7 @@ public class BrandNodeManager : MonoBehaviour
         var dlbl = dlblGO.AddComponent<TextMeshProUGUI>();
         dlbl.text = "카드 선택";
         dlbl.alignment = TextAlignmentOptions.Center;
-        dlbl.fontSize = 24;
+        dlbl.fontSize = 30;
         dlbl.fontStyle = FontStyles.Bold;
         dlbl.color = Color.white;
         cardRemoveDeleteLabel = dlbl;
@@ -745,7 +841,7 @@ public class BrandNodeManager : MonoBehaviour
         var cancelGO = new GameObject("CancelButton", typeof(RectTransform), typeof(Image), typeof(Button));
         cancelGO.transform.SetParent(footerGO.transform, false);
         var crt = cancelGO.GetComponent<RectTransform>();
-        crt.sizeDelta = new Vector2(280f, 70f);
+        crt.sizeDelta = new Vector2(320f, 84f);
         var cimg = cancelGO.GetComponent<Image>();
         cimg.color = new Color(0.3f, 0.3f, 0.35f, 1f);
         var cbtn = cancelGO.GetComponent<Button>();
@@ -761,7 +857,7 @@ public class BrandNodeManager : MonoBehaviour
         var clbl = clblGO.AddComponent<TextMeshProUGUI>();
         clbl.text = "취소";
         clbl.alignment = TextAlignmentOptions.Center;
-        clbl.fontSize = 22;
+        clbl.fontSize = 28;
         clbl.color = Color.white;
     }
 
@@ -797,7 +893,7 @@ public class BrandNodeManager : MonoBehaviour
         var entryGO = new GameObject("Entry", typeof(RectTransform), typeof(Image), typeof(Button));
         entryGO.transform.SetParent(parent, false);
         var rt = entryGO.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(800f, 70f);
+        rt.sizeDelta = new Vector2(1020f, 96f);
         var img = entryGO.GetComponent<Image>();
         img.color = new Color(0.22f, 0.15f, 0.32f, 1f);
         var btn = entryGO.GetComponent<Button>();
@@ -814,7 +910,7 @@ public class BrandNodeManager : MonoBehaviour
         var ttmp = titleGO.AddComponent<TextMeshProUGUI>();
         ttmp.text = title;
         ttmp.alignment = TextAlignmentOptions.MidlineLeft;
-        ttmp.fontSize = 22;
+        ttmp.fontSize = 30;
         ttmp.fontStyle = FontStyles.Bold;
         ttmp.color = Color.white;
 
@@ -828,7 +924,7 @@ public class BrandNodeManager : MonoBehaviour
         var dtmp = descGO.AddComponent<TextMeshProUGUI>();
         dtmp.text = desc ?? "";
         dtmp.alignment = TextAlignmentOptions.MidlineLeft;
-        dtmp.fontSize = 16;
+        dtmp.fontSize = 22;
         dtmp.color = new Color(0.85f, 0.82f, 0.92f);
         dtmp.enableWordWrapping = true;
     }
@@ -841,8 +937,8 @@ public class BrandNodeManager : MonoBehaviour
         rt.anchorMin = new Vector2(0.5f, 0f);
         rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0f);
-        rt.anchoredPosition = new Vector2(0f, 20f);
-        rt.sizeDelta = new Vector2(280f, 60f);
+        rt.anchoredPosition = new Vector2(0f, 28f);
+        rt.sizeDelta = new Vector2(340f, 78f);
         var img = btnGO.GetComponent<Image>();
         img.color = new Color(0.25f, 0.2f, 0.3f, 1f);
         var btn = btnGO.GetComponent<Button>();
@@ -858,7 +954,7 @@ public class BrandNodeManager : MonoBehaviour
         var tmp = labelGO.AddComponent<TextMeshProUGUI>();
         tmp.text = "취소";
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.fontSize = 22;
+        tmp.fontSize = 30;
         tmp.color = Color.white;
     }
 
