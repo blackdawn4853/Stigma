@@ -63,14 +63,13 @@ public class GameOverScene : MonoBehaviour
         rootFade.alpha = 0f;
         Transform root = rootGO.transform;
 
-        // 배경 (어두운 한기)
-        var bg = MakeImage(root, "BG", new Color(0.03f, 0.03f, 0.045f, 1f));
+        // 배경 (어두운 한기) — 즉시 솔리드(페이드 대상 아님), 맨 뒤로
+        var bg = MakeImage(canvas.transform, "BG", new Color(0.03f, 0.03f, 0.045f, 1f));
         StretchFull(bg.rectTransform);
+        bg.transform.SetAsFirstSibling();
 
-        // 타이틀 "GAME OVER"
-        var title = MakeText(root, "GAME OVER", 130, FontStyles.Bold,
-            new Color(0.78f, 0.10f, 0.12f), new Vector2(0f, 230f), new Vector2(1400f, 200f));
-        AddOutline(title, new Color(0f, 0f, 0f, 0.85f), 0.3f);
+        // 타이틀 "GAME OVER" — 페이드 대신 피-reveal + 떨림 연출로 등장(GameOverTitleFX)
+        BuildTitleFX(canvas.transform);
 
         // 글귀 (랜덤)
         string epitaph = Epitaphs[Random.Range(0, Epitaphs.Length)];
@@ -94,6 +93,29 @@ public class GameOverScene : MonoBehaviour
 
         // 타이틀로 버튼
         BuildTitleButton(root, new Vector2(0f, -310f));
+    }
+
+    // 타이틀 + 뒤편 붉은 글로우 생성 후 연출 컴포넌트(GameOverTitleFX) 부착.
+    // 타이틀 레이어는 Root(CanvasGroup 페이드) 밖에 둬서 이중 페이드 없이 자체 reveal 로만 등장.
+    void BuildTitleFX(Transform canvasParent)
+    {
+        // 타이틀 뒤 붉은 라디얼 글로우 (호흡)
+        var glow = MakeImage(canvasParent, "TitleGlow", new Color(0.62f, 0.06f, 0.07f, 0f));
+        var grt = glow.rectTransform;
+        grt.anchorMin = grt.anchorMax = grt.pivot = new Vector2(0.5f, 0.5f);
+        grt.anchoredPosition = new Vector2(0f, 230f);
+        grt.sizeDelta = new Vector2(1320f, 540f);
+        glow.sprite = RadialSprite();
+        glow.raycastTarget = false;
+
+        // 타이틀 "GAME OVER"
+        var title = MakeText(canvasParent, "GAME OVER", 130, FontStyles.Bold,
+            new Color(0.78f, 0.10f, 0.12f), new Vector2(0f, 230f), new Vector2(1400f, 200f));
+        AddOutline(title, new Color(0f, 0f, 0f, 0.85f), 0.3f);
+        title.raycastTarget = false;
+
+        var fx = title.gameObject.AddComponent<GameOverTitleFX>();
+        fx.Init(title, glow);
     }
 
     void BuildStat(Transform parent, Vector2 pos, string caption, string value, System.Action onClick)
@@ -373,6 +395,30 @@ public class GameOverScene : MonoBehaviour
         return img;
     }
 
+    // 부드러운 라디얼 글로우 스프라이트(흰색, 알파만 중앙→가장자리 감쇠). 색은 Image.color 로 입힘.
+    Sprite radialCache;
+    Sprite RadialSprite()
+    {
+        if (radialCache != null) return radialCache;
+        const int s = 256;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[s * s];
+        Vector2 c = new Vector2(s * 0.5f, s * 0.5f);
+        float maxR = s * 0.5f;
+        for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), c) / maxR;
+                float a = Mathf.Clamp01(1f - d);
+                a *= a; // 부드러운 감쇠
+                px[y * s + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+        tex.SetPixels32(px);
+        tex.Apply();
+        radialCache = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f));
+        return radialCache;
+    }
+
     TextMeshProUGUI MakeText(Transform parent, string content, int size, FontStyles style,
         Color color, Vector2 anchoredPos, Vector2 sizeDelta)
     {
@@ -462,5 +508,120 @@ public class UITriangle : MaskableGraphic
         v.position = new Vector3(r.xMax, (r.yMin + r.yMax) * 0.5f, 0f); vh.AddVert(v);  // 2 우중
 
         vh.AddTriangle(0, 1, 2);
+    }
+}
+
+// "GAME OVER" 타이틀 연출:
+//  ① 피-reveal — 글자가 위→아래로 붉게 스며들 듯 나타남(정점 알파 그라데이션), 진행선은 더 밝은 붉은 기.
+//  ② 떨림 — reveal 후 글자마다(per-vertex) 미세하게 따로 흔들림(불안한 톤).
+//  ③ 글로우 호흡 — 타이틀 뒤 붉은 라디얼 글로우가 천천히 밝아졌다 어두워짐.
+// TMP 정점을 직접 만져 추가 에셋 없이 구현. Time.unscaled* 사용(게임오버는 timeScale 무관 보장).
+public class GameOverTitleFX : MonoBehaviour
+{
+    TextMeshProUGUI title;
+    Image glow;
+    Vector3[][] baseVerts;
+    Color32[][] baseCols;
+    float yMin, yMax;
+    float t;
+    bool ready;
+
+    const float RevealDur = 1.6f;   // 피-reveal 시간
+    const float Band = 0.18f;       // reveal 경계 부드러움(정규화 높이 기준)
+    const float Jitter = 1.7f;      // 떨림 픽셀 진폭
+    static readonly Color BaseColor = new Color(0.78f, 0.10f, 0.12f);
+    static readonly Color BrightColor = new Color(1f, 0.32f, 0.22f); // 진행선 번지는 붉은 기
+
+    public void Init(TextMeshProUGUI titleText, Image glowImage)
+    {
+        title = titleText;
+        glow = glowImage;
+    }
+
+    void Start()
+    {
+        title.ForceMeshUpdate();
+        var ti = title.textInfo;
+        baseVerts = new Vector3[ti.meshInfo.Length][];
+        baseCols = new Color32[ti.meshInfo.Length][];
+        for (int i = 0; i < ti.meshInfo.Length; i++)
+        {
+            baseVerts[i] = (Vector3[])ti.meshInfo[i].vertices.Clone();
+            baseCols[i] = (Color32[])ti.meshInfo[i].colors32.Clone();
+        }
+
+        // 글자 정점 Y 범위(정규화 기준)
+        yMin = float.MaxValue; yMax = float.MinValue;
+        for (int c = 0; c < ti.characterCount; c++)
+        {
+            if (!ti.characterInfo[c].isVisible) continue;
+            int mi = ti.characterInfo[c].materialReferenceIndex;
+            int vi = ti.characterInfo[c].vertexIndex;
+            for (int k = 0; k < 4; k++)
+            {
+                float y = baseVerts[mi][vi + k].y;
+                if (y < yMin) yMin = y;
+                if (y > yMax) yMax = y;
+            }
+        }
+        if (yMax <= yMin) yMax = yMin + 1f;
+
+        ready = true;
+        ApplyFrame(0f); // 시작 시 완전히 숨김
+    }
+
+    void Update()
+    {
+        if (!ready) return;
+        t += Time.unscaledDeltaTime;
+        ApplyFrame(t);
+    }
+
+    void ApplyFrame(float time)
+    {
+        var ti = title.textInfo;
+        float p = Mathf.Clamp01(time / RevealDur);
+        float front = Mathf.Lerp(1f + Band, -Band, p);                 // 진행선 위→아래
+        float jitterAmt = Jitter * Mathf.Clamp01((p - 0.7f) / 0.3f);   // reveal 후반부터 떨림 램프인
+        float breath = 0.5f + 0.5f * Mathf.Sin(time * 2.0f);
+        float invSpan = 1f / (yMax - yMin);
+
+        for (int c = 0; c < ti.characterCount; c++)
+        {
+            if (!ti.characterInfo[c].isVisible) continue;
+            int mi = ti.characterInfo[c].materialReferenceIndex;
+            int vi = ti.characterInfo[c].vertexIndex;
+
+            // 글자마다 다른 떨림(Perlin 으로 부드럽게)
+            float jx = (Mathf.PerlinNoise(c * 0.37f, time * 9f) - 0.5f) * 2f * jitterAmt;
+            float jy = (Mathf.PerlinNoise(c * 0.37f + 5.2f, time * 9f) - 0.5f) * 2f * jitterAmt;
+
+            var verts = ti.meshInfo[mi].vertices;
+            var cols = ti.meshInfo[mi].colors32;
+            for (int k = 0; k < 4; k++)
+            {
+                Vector3 bv = baseVerts[mi][vi + k];
+                verts[vi + k] = bv + new Vector3(jx, jy, 0f);
+
+                float yNorm = (bv.y - yMin) * invSpan;
+                float a = Mathf.Clamp01((yNorm - (front - Band)) / (2f * Band));
+                float boost = (p >= 1f) ? 0f : 1f - Mathf.Clamp01(Mathf.Abs(yNorm - front) / Band);
+
+                Color col = Color.Lerp(BaseColor, BrightColor, boost * 0.85f);
+                col.a = (baseCols[mi][vi + k].a / 255f) * a;
+                cols[vi + k] = col;
+            }
+        }
+
+        title.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices | TMP_VertexDataUpdateFlags.Colors32);
+
+        if (glow != null)
+        {
+            var gc = glow.color;
+            gc.a = (0.10f + 0.14f * breath) * p;
+            glow.color = gc;
+            float sc = 1f + 0.04f * breath;
+            glow.rectTransform.localScale = new Vector3(sc, sc, 1f);
+        }
     }
 }
