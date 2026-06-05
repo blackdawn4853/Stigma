@@ -11,6 +11,7 @@ public class SaveData
     public int playerGold;
     public int runGazeLevel;
     public bool startNodeUnlocked;
+    public bool startEncounterDone;
     public int bossesDefeated;
     public List<string> deckCardNames = new List<string>();
     public List<DrawLine> drawingLines = new List<DrawLine>();
@@ -66,6 +67,9 @@ public class GameManager : MonoBehaviour
     [Header("진행 상태")]
     public bool startNodeUnlocked = false;
     public int bossesDefeated = 0;
+
+    // 출발의 의식(외신 조우) — 현재 장(맵)에서 이미 치렀는지. 새 맵 생성 시 1회만 발동.
+    [HideInInspector] public bool startEncounterDone = false;
 
     [Header("시작 덱 설정")]
     public CardData[] startingDeck;
@@ -127,6 +131,9 @@ public class GameManager : MonoBehaviour
         if (EncounterDatabase.Instance != null)
             EncounterDatabase.Instance.ResetAllRecent();
         EncounterDatabase.NextEncounter = null;
+
+        // 새 런 → 외신 조우 다시 발동 가능하게
+        startEncounterDone = false;
     }
 
     public void OnBossDefeated()
@@ -153,6 +160,7 @@ public class GameManager : MonoBehaviour
         playerGold = baseGold;
         runGazeLevel = 0;
         startNodeUnlocked = false;
+        startEncounterDone = false;
         bossesDefeated = 0;
         InitializeDeck();
         savedNodeStates.Clear();
@@ -257,6 +265,7 @@ public class GameManager : MonoBehaviour
         data.playerGold = playerGold;
         data.runGazeLevel = runGazeLevel;
         data.startNodeUnlocked = startNodeUnlocked;
+        data.startEncounterDone = startEncounterDone;
         data.bossesDefeated = bossesDefeated;
         foreach (CardData card in playerDeck)
             data.deckCardNames.Add(card.cardName);
@@ -322,6 +331,7 @@ public class GameManager : MonoBehaviour
         playerGold = data.playerGold;
         runGazeLevel = data.runGazeLevel;
         startNodeUnlocked = data.startNodeUnlocked;
+        startEncounterDone = data.startEncounterDone;
         bossesDefeated = data.bossesDefeated;
 
         playerDeck.Clear();

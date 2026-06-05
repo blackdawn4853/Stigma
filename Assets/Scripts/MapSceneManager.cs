@@ -20,6 +20,7 @@ public class MapSceneManager : MonoBehaviour
     private List<MapNodeUI> allNodeUIs = new List<MapNodeUI>();
     private Dictionary<NodeData, Vector2> nodeUIPositions = new Dictionary<NodeData, Vector2>();
     private List<List<NodeData>> currentLayers;
+    private bool isFreshRun = false;   // 이번 진입이 새 맵 생성(새 장)인지 — 외신 조우 발동용
 
     void Awake()
     {
@@ -96,10 +97,25 @@ public class MapSceneManager : MonoBehaviour
         else
         {
             InitializeStartState(currentLayers);
+            isFreshRun = true;
         }
 
         RefreshAllNodes();
         StartCoroutine(ScrollToBottom());
+
+        // 새 장(맵) 첫 진입 + 아직 안 치렀으면 → 스타트 노드 외신 조우
+        if (isFreshRun && GameManager.Instance != null && !GameManager.Instance.startEncounterDone)
+        {
+            int actIndex = GameManager.Instance.bossesDefeated; // 0-based 장 번호
+            StartEncounterUI.Spawn(actIndex, OnStartEncounterDone);
+        }
+    }
+
+    void OnStartEncounterDone()
+    {
+        if (GameManager.Instance == null) return;
+        GameManager.Instance.startEncounterDone = true;
+        GameManager.Instance.Save();
     }
 
     void InitializeStartState(List<List<NodeData>> layers)
