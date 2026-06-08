@@ -16,6 +16,10 @@ public class MapSceneManager : MonoBehaviour
     public float topPadding = 150f;
     public float bottomPadding = 150f;
 
+    [Header("맵 전체 배율")]
+    [Tooltip("노드 크기 + 노드 간격을 함께 키우는 배율. 1 = 원본. 표시 시점에만 적용되므로 저장된 맵도 동일하게 확대된다.")]
+    public float mapScale = 1.5f;
+
     private NodeData currentNode;
     private List<MapNodeUI> allNodeUIs = new List<MapNodeUI>();
     private Dictionary<NodeData, Vector2> nodeUIPositions = new Dictionary<NodeData, Vector2>();
@@ -59,7 +63,7 @@ public class MapSceneManager : MonoBehaviour
 
         float layerHeight = MapGenerator.Instance.layerHeight;
         int maxLayer = currentLayers.Count - 1;
-        float totalHeight = bottomPadding + (maxLayer * layerHeight) + topPadding;
+        float totalHeight = bottomPadding + (maxLayer * layerHeight * mapScale) + topPadding;
 
         mapContainer.anchorMin = new Vector2(0.5f, 0f);
         mapContainer.anchorMax = new Vector2(0.5f, 0f);
@@ -70,8 +74,8 @@ public class MapSceneManager : MonoBehaviour
         foreach (var layer in currentLayers)
             foreach (var nodeData in layer)
             {
-                float xPos = nodeData.position.x;
-                float yPos = bottomPadding + nodeData.position.y;
+                float xPos = nodeData.position.x * mapScale;
+                float yPos = bottomPadding + nodeData.position.y * mapScale;
                 nodeUIPositions[nodeData] = new Vector2(xPos, yPos);
             }
 
@@ -165,6 +169,7 @@ public class MapSceneManager : MonoBehaviour
         rt.anchorMax = new Vector2(0.5f, 0f);
         rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = nodeUIPositions[nodeData];
+        rt.localScale = Vector3.one * mapScale;
 
         MapNodeUI nodeUI = nodeObj.GetComponent<MapNodeUI>();
         if (nodeUI != null)
@@ -201,7 +206,7 @@ public class MapSceneManager : MonoBehaviour
         rt.anchoredPosition = (from + to) / 2f;
 
         float distance = Vector2.Distance(from, to);
-        rt.sizeDelta = new Vector2(distance, 4f);
+        rt.sizeDelta = new Vector2(distance, 4f * mapScale);
 
         Vector2 dir = to - from;
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;

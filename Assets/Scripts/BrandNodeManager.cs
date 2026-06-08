@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 
 // 낙인 노드 씬 매니저
@@ -70,6 +71,9 @@ public class BrandNodeManager : MonoBehaviour
             BuildCardRemoveButton();
             BuildReturnButton();
         }
+
+        // 배경: 거의 검정 + 은은한 비네트 (잡티 없이 깔끔하게)
+        BuildAtmosphere();
     }
 
     Canvas FindCanvasInOwnScene()
@@ -105,30 +109,10 @@ public class BrandNodeManager : MonoBehaviour
                 if (card == null) continue;
                 int captured = threshold;
 
-                var btn = card.GetComponent<Button>();
-                var img = card.GetComponent<Image>();
-                var nameTmp = SafeGetText(card.Find("EffectName"));
-                var descTmp = SafeGetText(card.Find("Desc"));
-                var lockX = card.Find("LockX")?.gameObject;
-
-                if (nameTmp != null) nameTmp.text = GetEffectName(threshold);
-                if (descTmp != null) descTmp.text = GetEffectDesc(threshold);
-                if (lockX != null) lockX.SetActive(false);
-                if (btn != null)
-                {
-                    btn.onClick.RemoveAllListeners();
-                    btn.onClick.AddListener(() => OnEffectCardClicked(captured));
-                }
-
-                effectCards[threshold] = new EffectCardUI
-                {
-                    root = card.gameObject,
-                    image = img,
-                    button = btn,
-                    nameText = nameTmp,
-                    descText = descTmp,
-                    lockX = lockX
-                };
+                var ui = StyleEffectCard(card.gameObject, threshold);
+                ui.button.onClick.RemoveAllListeners();
+                ui.button.onClick.AddListener(() => OnEffectCardClicked(captured));
+                effectCards[threshold] = ui;
             }
         }
 
@@ -168,48 +152,35 @@ public class BrandNodeManager : MonoBehaviour
     // 효과 카드 행을 정확히 화면 중앙으로 재정렬한다. (모달은 절차생성 코드에서 별도 확대)
     void ApplyLargerLayout()
     {
-        // 제목 / 부제
-        SetFontOf(root.Find("Title"), 84f);
+        // 제목 — 크게 + 그을린 밝은 톤
+        SetFontOf(root.Find("Title"), 96f);
+        var titleT = root.Find("Title");
+        if (titleT != null)
+        {
+            var ttmp = titleT.GetComponent<TextMeshProUGUI>();
+            if (ttmp != null)
+            {
+                ttmp.color = new Color(0.94f, 0.87f, 0.96f, 1f);
+                ttmp.characterSpacing = 14f;
+            }
+        }
+        // 제목 아래 룬 라인
+        if (titleT != null) BuildTitleRule(titleT);
+
+        // 부제
         var sub = root.Find("Subtitle");
-        SetFontOf(sub, 34f);
+        SetFontOf(sub, 30f);
         if (sub != null)
         {
             var srt = sub.GetComponent<RectTransform>();
-            srt.sizeDelta = new Vector2(1500f, 64f);
-            srt.anchoredPosition = new Vector2(0f, -195f);
+            srt.sizeDelta = new Vector2(1500f, 60f);
+            srt.anchoredPosition = new Vector2(0f, -210f);
+            var stmp = sub.GetComponent<TextMeshProUGUI>();
+            if (stmp != null) stmp.color = new Color(0.76f, 0.71f, 0.84f, 1f);
         }
 
-        // 효과 카드 5개 확대 (220x240 → 290x330, 폰트 Threshold/Name/Desc 키움)
-        foreach (var kv in effectCards)
-        {
-            var card = kv.Value;
-            if (card.root == null) continue;
-            card.root.GetComponent<RectTransform>().sizeDelta = new Vector2(290f, 330f);
-
-            if (card.nameText != null)
-            {
-                card.nameText.fontSize = 30f;
-                var nrt = card.nameText.rectTransform;
-                nrt.sizeDelta = new Vector2(-16f, 86f);
-                nrt.anchoredPosition = new Vector2(0f, 18f);
-            }
-            if (card.descText != null) card.descText.fontSize = 20f;
-
-            var thr = card.root.transform.Find("Threshold");
-            SetFontOf(thr, 42f);
-            if (thr != null) thr.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 52f);
-
-            if (card.lockX != null)
-            {
-                var lx = card.lockX.GetComponent<TextMeshProUGUI>();
-                if (lx != null) lx.fontSize = 180f;
-            }
-        }
-
-        // 효과 카드 행: 중앙 재정렬(x=0) + 위치/간격 조정.
-        // 행 폭을 콘텐츠 총폭과 정확히 일치시키고 anchoredPos.x=0 → 화면 정중앙 정렬.
-        // (폭 0 + MiddleCenter 는 미세하게 치우치므로 폭을 명시한다.)
-        const float cardW = 290f, spacing = 26f;
+        // 효과 카드 행: 중앙 재정렬 + 위치/간격 (카드 내부 디자인은 StyleEffectCard 담당)
+        const float cardW = 300f, spacing = 24f;
         var row = root.Find("EffectsRow");
         if (row != null)
         {
@@ -226,13 +197,50 @@ public class BrandNodeManager : MonoBehaviour
             float totalW = n > 0 ? n * cardW + (n - 1) * spacing : 0f;
             var rrt = row.GetComponent<RectTransform>();
             rrt.anchoredPosition = new Vector2(0f, -300f);
-            rrt.sizeDelta = new Vector2(totalW, 330f);
+            rrt.sizeDelta = new Vector2(totalW, 384f);
             LayoutRebuilder.ForceRebuildLayoutImmediate(rrt);
         }
 
-        // 하단 버튼 2개 확대 + 재배치 (행이 커진 만큼 아래로)
-        ResizeButton(root.Find("CardRemoveButton"), new Vector2(480f, 104f), new Vector2(0f, -680f), 36f);
-        ResizeButton(root.Find("ReturnButton"),     new Vector2(480f, 104f), new Vector2(0f, -812f), 36f);
+        // 하단 버튼 2개 확대 + 재배치 + 다크 리스타일
+        ResizeButton(root.Find("CardRemoveButton"), new Vector2(520f, 108f), new Vector2(0f, -724f), 36f);
+        ResizeButton(root.Find("ReturnButton"),     new Vector2(520f, 108f), new Vector2(0f, -860f), 36f);
+        StyleBottomButton(root.Find("CardRemoveButton"), new Color(0.17f, 0.09f, 0.11f, 1f), new Color(0.74f, 0.27f, 0.27f, 1f));
+        StyleBottomButton(root.Find("ReturnButton"),     new Color(0.12f, 0.12f, 0.16f, 1f), new Color(0.44f, 0.48f, 0.58f, 1f));
+    }
+
+    // 하단 버튼 다크 리스타일: 어두운 패널 + 좌측 얇은 강조바 + 밝은 라벨 (과하지 않게)
+    void StyleBottomButton(Transform btn, Color bg, Color accent)
+    {
+        if (btn == null) return;
+        var img = btn.GetComponent<Image>();
+        if (img != null) img.color = bg;
+
+        if (btn.Find("AccentBar") == null)
+        {
+            var bar = MakeRect(btn, Vector2.zero, Vector2.zero, accent);
+            bar.name = "AccentBar";
+            var brt = bar.rectTransform;
+            brt.anchorMin = new Vector2(0f, 0f); brt.anchorMax = new Vector2(0f, 1f); brt.pivot = new Vector2(0f, 0.5f);
+            brt.sizeDelta = new Vector2(6f, -20f); brt.anchoredPosition = new Vector2(10f, 0f);
+            bar.raycastTarget = false;
+        }
+
+        var label = btn.Find("Label");
+        if (label != null)
+        {
+            var tmp = label.GetComponent<TextMeshProUGUI>();
+            if (tmp != null) { tmp.color = colTextLight; tmp.characterSpacing = 3f; }
+        }
+    }
+
+    // 제목 아래 가느다란 룬 장식선 (한 번만)
+    void BuildTitleRule(Transform titleT)
+    {
+        if (titleT.Find("TitleRule") != null) return;
+        var line = MakeRect(titleT, new Vector2(0f, -64f), new Vector2(360f, 3f), new Color(0.6f, 0.16f, 0.16f, 0.8f));
+        line.name = "TitleRule";
+        var diamond = MakeRect(titleT, new Vector2(0f, -64f), new Vector2(12f, 12f), new Color(0.78f, 0.24f, 0.2f, 1f));
+        diamond.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
     }
 
     void SetFontOf(Transform t, float size)
@@ -248,6 +256,7 @@ public class BrandNodeManager : MonoBehaviour
         var rt = btn.GetComponent<RectTransform>();
         rt.sizeDelta = size;
         rt.anchoredPosition = pos;
+        if (btn.GetComponent<HoverScale>() == null) btn.gameObject.AddComponent<HoverScale>();
         SetFontOf(btn.Find("Label"), labelFont);
         var lx = btn.Find("LockX");
         if (lx != null)
@@ -335,87 +344,9 @@ public class BrandNodeManager : MonoBehaviour
     {
         var card = new GameObject($"EffectCard_{threshold}", typeof(RectTransform), typeof(Image), typeof(Button));
         card.transform.SetParent(parent, false);
-        var rt = card.GetComponent<RectTransform>();
-        rt.sizeDelta = effectCardSize;
-        var img = card.GetComponent<Image>();
-        img.color = cardBgColor;
-        var btn = card.GetComponent<Button>();
-        btn.targetGraphic = img;
-
-        // Threshold label
-        var thrGO = new GameObject("Threshold", typeof(RectTransform));
-        thrGO.transform.SetParent(card.transform, false);
-        var thrRT = thrGO.GetComponent<RectTransform>();
-        thrRT.anchorMin = new Vector2(0f, 1f);
-        thrRT.anchorMax = new Vector2(1f, 1f);
-        thrRT.pivot = new Vector2(0.5f, 1f);
-        thrRT.anchoredPosition = new Vector2(0f, -10f);
-        thrRT.sizeDelta = new Vector2(0f, 40f);
-        var thrTmp = thrGO.AddComponent<TextMeshProUGUI>();
-        thrTmp.text = threshold.ToString();
-        thrTmp.alignment = TextAlignmentOptions.Center;
-        thrTmp.fontSize = 32;
-        thrTmp.fontStyle = FontStyles.Bold;
-        thrTmp.color = new Color(1f, 0.7f, 0.85f);
-
-        // Effect name
-        var nameGO = new GameObject("EffectName", typeof(RectTransform));
-        nameGO.transform.SetParent(card.transform, false);
-        var nrt = nameGO.GetComponent<RectTransform>();
-        nrt.anchorMin = new Vector2(0f, 0.5f);
-        nrt.anchorMax = new Vector2(1f, 0.5f);
-        nrt.pivot = new Vector2(0.5f, 0.5f);
-        nrt.anchoredPosition = new Vector2(0f, 10f);
-        nrt.sizeDelta = new Vector2(-16f, 60f);
-        var nTmp = nameGO.AddComponent<TextMeshProUGUI>();
-        nTmp.text = GetEffectName(threshold);
-        nTmp.alignment = TextAlignmentOptions.Center;
-        nTmp.fontSize = 22;
-        nTmp.fontStyle = FontStyles.Bold;
-        nTmp.color = Color.white;
-        nTmp.enableWordWrapping = true;
-
-        // Description
-        var descGO = new GameObject("Desc", typeof(RectTransform));
-        descGO.transform.SetParent(card.transform, false);
-        var drt = descGO.GetComponent<RectTransform>();
-        drt.anchorMin = new Vector2(0f, 0f);
-        drt.anchorMax = new Vector2(1f, 0.5f);
-        drt.pivot = new Vector2(0.5f, 0f);
-        drt.anchoredPosition = new Vector2(0f, 10f);
-        drt.sizeDelta = new Vector2(-16f, -10f);
-        var dTmp = descGO.AddComponent<TextMeshProUGUI>();
-        dTmp.text = GetEffectDesc(threshold);
-        dTmp.alignment = TextAlignmentOptions.Top;
-        dTmp.fontSize = 14;
-        dTmp.color = new Color(0.85f, 0.8f, 0.9f);
-        dTmp.enableWordWrapping = true;
-
-        // X mark (lock indicator)
-        var xGO = new GameObject("LockX", typeof(RectTransform));
-        xGO.transform.SetParent(card.transform, false);
-        var xrt = xGO.GetComponent<RectTransform>();
-        xrt.anchorMin = Vector2.zero;
-        xrt.anchorMax = Vector2.one;
-        xrt.offsetMin = xrt.offsetMax = Vector2.zero;
-        var xTmp = xGO.AddComponent<TextMeshProUGUI>();
-        xTmp.text = "✕";
-        xTmp.alignment = TextAlignmentOptions.Center;
-        xTmp.fontSize = 140;
-        xTmp.fontStyle = FontStyles.Bold;
-        xTmp.color = new Color(1f, 0.3f, 0.3f, 0.85f);
-        xGO.SetActive(false);
-
-        var ui = new EffectCardUI
-        {
-            root = card,
-            image = img,
-            button = btn,
-            nameText = nTmp,
-            descText = dTmp,
-            lockX = xGO
-        };
-        btn.onClick.AddListener(() => OnEffectCardClicked(threshold));
+        var ui = StyleEffectCard(card, threshold);
+        ui.button.onClick.RemoveAllListeners();
+        ui.button.onClick.AddListener(() => OnEffectCardClicked(threshold));
         return ui;
     }
 
@@ -550,7 +481,7 @@ public class BrandNodeManager : MonoBehaviour
                 if (effect == current) continue;
                 anyOption = true;
                 var capturedEffect = effect;
-                BuildModalEntry(listGO.transform, effect.displayName, FormatEffectDesc(effect),
+                BuildEffectSwapEntry(listGO.transform, effect,
                     () => { ApplyEffectSwap(threshold, capturedEffect); });
             }
         }
@@ -704,8 +635,12 @@ public class BrandNodeManager : MonoBehaviour
             cardRt.anchorMin = cardRt.anchorMax = new Vector2(0.5f, 0.5f);
             cardRt.pivot = new Vector2(0.5f, 0.5f);
             cardRt.anchoredPosition = Vector2.zero;
-            cardRt.sizeDelta = new Vector2(224f, 300f);
-            cardRt.localScale = Vector3.one * 0.92f; // 프레임(등급색/선택강조)이 테두리로 보이게 살짝 축소
+            // 배틀씬과 동일한 내부 배치(아이콘/마나박스 위치)를 위해 프리팹 네이티브 크기를 유지하고
+            // 셀(224x300)에 맞게 '균일 스케일'만 적용한다. (sizeDelta를 바꾸면 앵커드 자식들이 어긋남)
+            Vector2 native = cardRt.sizeDelta;
+            if (native.x < 1f || native.y < 1f) native = new Vector2(200f, 280f); // 안전장치
+            float fit = Mathf.Min(224f / native.x, 300f / native.y) * 0.92f; // 프레임이 테두리로 보이게 살짝 축소
+            cardRt.localScale = Vector3.one * fit;
             var cui = cardGO.GetComponent<CardUI>();
             if (cui != null) { cui.Setup(card); cui.enabled = false; } // Setup 후 비활성(드래그/Update 차단)
             var cg = cardGO.GetComponent<CanvasGroup>();
@@ -998,11 +933,10 @@ public class BrandNodeManager : MonoBehaviour
         {
             kv.Value.button.interactable = false;
             kv.Value.image.color = cardLockedColor;
-            // 갱신: 교체 후 새 효과명/설명 반영
-            kv.Value.nameText.text = GetEffectName(kv.Key);
-            kv.Value.descText.text = GetEffectDesc(kv.Key);
-            if (kv.Key == chosenThreshold)
-                kv.Value.lockX.SetActive(true);
+            // 갱신: 교체 후 새 효과명/버프/디버프 반영
+            FillEffectCard(kv.Value, kv.Key);
+            var hov = kv.Value.root != null ? kv.Value.root.GetComponent<HoverScale>() : null;
+            if (hov != null) hov.Disable();
         }
 
         if (cardRemoveButton != null)
@@ -1010,8 +944,271 @@ public class BrandNodeManager : MonoBehaviour
             cardRemoveButton.interactable = false;
             var img = cardRemoveButton.GetComponent<Image>();
             if (img != null) img.color = buttonDisabledColor;
+            var hov = cardRemoveButton.GetComponent<HoverScale>();
+            if (hov != null) hov.Disable();
         }
-        if (cardRemoveX != null && removedCard) cardRemoveX.SetActive(true);
+        if (cardRemoveX != null) cardRemoveX.SetActive(false);
+
+        // 선택한 항목 위에 낙인 각인(A) → 사슬 봉인(C) 연출
+        RectTransform target = null;
+        var charTexts = new List<TextMeshProUGUI>();
+        if (chosenThreshold >= 0 && effectCards.TryGetValue(chosenThreshold, out var chosen) && chosen.root != null)
+        {
+            target = chosen.root.GetComponent<RectTransform>();
+            if (chosen.nameText != null) charTexts.Add(chosen.nameText);
+            if (chosen.buffText != null) charTexts.Add(chosen.buffText);
+            if (chosen.debuffText != null) charTexts.Add(chosen.debuffText);
+        }
+        else if (removedCard && cardRemoveButton != null)
+        {
+            target = cardRemoveButton.GetComponent<RectTransform>();
+            var label = cardRemoveButton.transform.Find("Label");
+            if (label != null)
+            {
+                var lblTmp = label.GetComponent<TextMeshProUGUI>();
+                if (lblTmp != null) charTexts.Add(lblTmp);
+            }
+        }
+
+        if (target != null) StartCoroutine(PlayBrandSequence(target, charTexts));
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 낙인 연출 (A: 각인 / C: 사슬 봉인) — 전부 코드 생성, 스프라이트 미사용
+    // ────────────────────────────────────────────────────────────────
+    static readonly Color charColor = new Color(0.5f, 0.13f, 0.11f, 1f); // 그을린 검붉은색
+    static readonly Color ironColor = new Color(0.34f, 0.34f, 0.38f, 1f); // 사슬 쇠색
+    static readonly Color chainHoleColor = new Color(0.05f, 0.04f, 0.06f, 0.92f); // 링 구멍
+
+    IEnumerator PlayBrandSequence(RectTransform target, List<TextMeshProUGUI> charTexts)
+    {
+        if (target == null) yield break;
+
+        // 텍스트 시작 색 저장
+        int n = charTexts.Count;
+        var startCols = new Color[n];
+        for (int i = 0; i < n; i++) startCols[i] = charTexts[i].color;
+
+        Vector3 baseScale = target.localScale;
+        const float dur = 0.4f;
+        float t = 0f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / dur);
+
+            // 펀치 스케일: 초반 35% 구간에서 1 → 1.08 → 1
+            float punchT = Mathf.Clamp01(p / 0.35f);
+            float punch = 1f + 0.08f * Mathf.Sin(punchT * Mathf.PI);
+            target.localScale = baseScale * punch;
+
+            // 미세 진동 (인두 떨림) — 회전으로만 (레이아웃 그룹과 충돌 없음)
+            target.localRotation = (t < 0.18f)
+                ? Quaternion.Euler(0f, 0f, Random.Range(-1.6f, 1.6f))
+                : Quaternion.identity;
+
+            // 텍스트: 흰색 → 그을린 검붉은색 (주황 번쩍 없이 차분하게 타들어감)
+            for (int i = 0; i < n; i++)
+                charTexts[i].color = Color.Lerp(startCols[i], charColor, p);
+
+            yield return null;
+        }
+
+        target.localScale = baseScale;
+        target.localRotation = Quaternion.identity;
+        for (int i = 0; i < n; i++) charTexts[i].color = charColor;
+
+        // 사슬 봉인: 아래에서부터 X자로 잠긴다
+        var refs = BuildChainSeal(target);
+        refs.strandB.Reverse(); // 두 가닥 모두 아래→위 순서로 등장하도록 정렬
+        yield return AnimateChainsLockIn(refs);
+    }
+
+    class BrandSealRefs
+    {
+        public CanvasGroup dim;
+        public List<CanvasGroup> strandA = new List<CanvasGroup>();
+        public List<CanvasGroup> strandB = new List<CanvasGroup>();
+        public CanvasGroup center;
+    }
+
+    BrandSealRefs BuildChainSeal(RectTransform target)
+    {
+        var refs = new BrandSealRefs();
+
+        var seal = new GameObject("BrandSeal", typeof(RectTransform));
+        seal.transform.SetParent(target, false);
+        var rt = seal.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        seal.transform.SetAsLastSibling();
+
+        // 어둡게 가라앉힘 (사슬보다 먼저 옅게 깔림)
+        var dimGO = new GameObject("Dim", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+        dimGO.transform.SetParent(seal.transform, false);
+        var drt = dimGO.GetComponent<RectTransform>();
+        drt.anchorMin = Vector2.zero;
+        drt.anchorMax = Vector2.one;
+        drt.offsetMin = drt.offsetMax = Vector2.zero;
+        var dimg = dimGO.GetComponent<Image>();
+        dimg.color = new Color(0.02f, 0.01f, 0.02f, 0.55f);
+        dimg.raycastTarget = false;
+        refs.dim = dimGO.GetComponent<CanvasGroup>();
+        refs.dim.alpha = 0f;
+
+        Vector2 size = target.rect.size;
+        // 대상 모양에 맞춰 사슬 규모/각도 조정 (넓고 낮은 버튼이면 작고 납작한 X)
+        bool wide = size.x > size.y * 1.8f;
+        float linkScale = wide ? Mathf.Clamp(size.y / 200f, 0.45f, 1f) : 1f;
+        float angle = wide ? Mathf.Clamp(Mathf.Atan2(size.y, size.x) * Mathf.Rad2Deg, 10f, 30f) : 32f;
+        float lengthMul = wide ? 0.96f : 0.92f;
+        refs.strandA = BuildChainStrand(seal.transform, size, angle, linkScale, lengthMul);
+        refs.strandB = BuildChainStrand(seal.transform, size, -angle, linkScale, lengthMul);
+
+        // 중앙 인장 (사슬이 교차하며 마지막에 잠김)
+        var centerGO = new GameObject("Center", typeof(RectTransform), typeof(CanvasGroup));
+        centerGO.transform.SetParent(seal.transform, false);
+        var crt = centerGO.GetComponent<RectTransform>();
+        crt.anchorMin = crt.anchorMax = new Vector2(0.5f, 0.5f);
+        crt.pivot = new Vector2(0.5f, 0.5f);
+        crt.anchoredPosition = Vector2.zero;
+        crt.sizeDelta = Vector2.zero;
+        refs.center = centerGO.GetComponent<CanvasGroup>();
+        refs.center.alpha = 0f;
+        centerGO.transform.localScale = Vector3.one * 0.5f;
+        // 사슬 쇠색 8각 별 (사각 두 개를 45° 엇갈려 겹침) — 장식적인 인장 베이스 (대상 규모에 맞춰 축소)
+        MakeRect(centerGO.transform, Vector2.zero, new Vector2(38f, 38f) * linkScale, ironColor);
+        var star2 = MakeRect(centerGO.transform, Vector2.zero, new Vector2(38f, 38f) * linkScale, ironColor);
+        star2.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        // 어두운 인셋
+        var inset = MakeRect(centerGO.transform, Vector2.zero, new Vector2(24f, 24f) * linkScale, new Color(0.10f, 0.09f, 0.12f, 1f));
+        inset.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        // 낙인 룬: 은은한 검붉은 헤일로 + 작은 보석점 (진한 단색 네모 X)
+        var halo = MakeRect(centerGO.transform, Vector2.zero, new Vector2(20f, 20f) * linkScale, new Color(0.6f, 0.2f, 0.16f, 0.32f));
+        halo.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        var gem = MakeRect(centerGO.transform, Vector2.zero, new Vector2(9f, 9f) * linkScale, new Color(0.72f, 0.28f, 0.22f, 1f));
+        gem.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f);
+
+        return refs;
+    }
+
+    // 사슬 한 가닥: 가로/세로 링을 번갈아 겹쳐 배치 후 통째로 회전.
+    // 각 링은 CanvasGroup 컨테이너로 만들어 하나씩 등장시킬 수 있게 한다.
+    List<CanvasGroup> BuildChainStrand(Transform parent, Vector2 area, float angleDeg, float linkScale, float lengthMul)
+    {
+        var units = new List<CanvasGroup>();
+
+        var strand = new GameObject("Strand", typeof(RectTransform));
+        strand.transform.SetParent(parent, false);
+        var srt = strand.GetComponent<RectTransform>();
+        srt.anchorMin = srt.anchorMax = new Vector2(0.5f, 0.5f);
+        srt.pivot = new Vector2(0.5f, 0.5f);
+        srt.anchoredPosition = Vector2.zero;
+        srt.sizeDelta = Vector2.zero;
+        srt.localRotation = Quaternion.Euler(0f, 0f, angleDeg);
+
+        float length = Mathf.Sqrt(area.x * area.x + area.y * area.y) * lengthMul;
+        float step = 20f * linkScale;
+        int count = Mathf.Max(3, Mathf.CeilToInt(length / step));
+        float start = -((count - 1) * step) / 2f;
+
+        for (int i = 0; i < count; i++)
+        {
+            bool horiz = (i % 2 == 0);
+            float lx = start + i * step;
+
+            var link = new GameObject("Link", typeof(RectTransform), typeof(CanvasGroup));
+            link.transform.SetParent(strand.transform, false);
+            var lrt = link.GetComponent<RectTransform>();
+            lrt.anchorMin = lrt.anchorMax = new Vector2(0.5f, 0.5f);
+            lrt.pivot = new Vector2(0.5f, 0.5f);
+            lrt.anchoredPosition = new Vector2(lx, 0f);
+            lrt.sizeDelta = Vector2.zero;
+            var cg = link.GetComponent<CanvasGroup>();
+            cg.alpha = 0f;
+            link.transform.localScale = Vector3.one * 0.5f;
+
+            Vector2 linkSize = (horiz ? new Vector2(34f, 15f) : new Vector2(15f, 34f)) * linkScale;
+            Vector2 holeSize = (horiz ? new Vector2(20f, 6f) : new Vector2(6f, 20f)) * linkScale;
+            MakeRect(link.transform, Vector2.zero, linkSize, ironColor);      // 링 외곽
+            MakeRect(link.transform, Vector2.zero, holeSize, chainHoleColor); // 링 구멍
+
+            units.Add(cg);
+        }
+        return units;
+    }
+
+    Image MakeRect(Transform parent, Vector2 pos, Vector2 size, Color col)
+    {
+        var go = new GameObject("Rect", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        var img = go.GetComponent<Image>();
+        img.color = col;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    IEnumerator AnimateChainsLockIn(BrandSealRefs refs)
+    {
+        if (refs == null) yield break;
+
+        // 바닥 어둠 빠르게 깔기
+        if (refs.dim != null) StartCoroutine(FadeCanvasGroup(refs.dim, 0f, 1f, 0.15f));
+
+        // 두 가닥을 동시에, 옆에서부터 한 링씩 톡톡 올라오게
+        int m = Mathf.Max(refs.strandA.Count, refs.strandB.Count);
+        const float stagger = 0.03f;
+        for (int i = 0; i < m; i++)
+        {
+            if (i < refs.strandA.Count) StartCoroutine(PopLink(refs.strandA[i]));
+            if (i < refs.strandB.Count) StartCoroutine(PopLink(refs.strandB[i]));
+            yield return new WaitForSeconds(stagger);
+        }
+
+        // 마지막에 중앙 인장이 찰칵 잠김
+        yield return new WaitForSeconds(0.05f);
+        if (refs.center != null) yield return PopLink(refs.center);
+    }
+
+    IEnumerator FadeCanvasGroup(CanvasGroup cg, float from, float to, float dur)
+    {
+        float t = 0f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            cg.alpha = Mathf.Lerp(from, to, Mathf.Clamp01(t / dur));
+            yield return null;
+        }
+        cg.alpha = to;
+    }
+
+    // 링 하나가 톡 올라오며 잠기는 팝 (살짝 오버슛)
+    IEnumerator PopLink(CanvasGroup cg)
+    {
+        if (cg == null) yield break;
+        var tr = cg.transform;
+        const float dur = 0.12f;
+        float t = 0f;
+        while (t < dur)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / dur);
+            cg.alpha = p;
+            // 0.5 → 1.1 → 1.0 오버슛
+            float s = (p < 0.6f)
+                ? Mathf.Lerp(0.5f, 1.1f, p / 0.6f)
+                : Mathf.Lerp(1.1f, 1f, (p - 0.6f) / 0.4f);
+            tr.localScale = Vector3.one * s;
+            yield return null;
+        }
+        cg.alpha = 1f;
+        tr.localScale = Vector3.one;
     }
 
     void ReturnToMap()
@@ -1105,6 +1302,271 @@ public class BrandNodeManager : MonoBehaviour
         tmp.color = color;
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // UI 업그레이드 (다크·음산 톤) — 전부 코드 절차생성, 외부 스프라이트 미사용
+    // ════════════════════════════════════════════════════════════════
+    static Sprite _spVignette;
+
+    static readonly Color colCardBg     = new Color(0.11f, 0.085f, 0.14f, 0.99f);
+    static readonly Color colCardEdge   = new Color(0.03f, 0.025f, 0.05f, 1f);
+    static readonly Color colTextLight  = new Color(0.93f, 0.89f, 0.97f, 1f);
+    static readonly Color colBuffBg     = new Color(0.06f, 0.16f, 0.16f, 0.96f);
+    static readonly Color colBuffTag    = new Color(0.42f, 0.93f, 0.83f, 1f);
+    static readonly Color colDebuffBg   = new Color(0.20f, 0.055f, 0.085f, 0.96f);
+    static readonly Color colDebuffTag  = new Color(1f, 0.48f, 0.48f, 1f);
+
+    // 시선 단계별 위험색 (20 옅음 → 100 핏빛)
+    Color ThresholdColor(int threshold)
+    {
+        float p = Mathf.InverseLerp(20f, 100f, threshold);
+        return Color.Lerp(new Color(0.45f, 0.38f, 0.55f, 1f), new Color(0.80f, 0.13f, 0.13f, 1f), p);
+    }
+
+    // 효과 카드 한 장을 다크 패널 + 버프/디버프 블록 구조로 재구성
+    EffectCardUI StyleEffectCard(GameObject cardGO, int threshold)
+    {
+        var rt = cardGO.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(300f, 384f);
+
+        var frame = cardGO.GetComponent<Image>();
+        if (frame == null) frame = cardGO.AddComponent<Image>();
+        frame.color = colCardEdge;
+        var btn = cardGO.GetComponent<Button>();
+        if (btn == null) btn = cardGO.AddComponent<Button>();
+        btn.targetGraphic = frame;
+        btn.transition = Selectable.Transition.None;
+        if (cardGO.GetComponent<HoverScale>() == null) cardGO.AddComponent<HoverScale>();
+
+        // 기존 자식 정리 후 새로 구성
+        for (int i = cardGO.transform.childCount - 1; i >= 0; i--)
+            Destroy(cardGO.transform.GetChild(i).gameObject);
+
+        Color accent = ThresholdColor(threshold);
+
+        // 안쪽 패널 (테두리 3px 보이게)
+        var inner = MakeRect(cardGO.transform, Vector2.zero, Vector2.zero, colCardBg);
+        var irt = inner.rectTransform;
+        irt.anchorMin = Vector2.zero; irt.anchorMax = Vector2.one;
+        irt.offsetMin = new Vector2(3f, 3f); irt.offsetMax = new Vector2(-3f, -3f);
+        inner.raycastTarget = false;
+
+        // 콘텐츠 세로 스택
+        var content = new GameObject("Content", typeof(RectTransform));
+        content.transform.SetParent(inner.transform, false);
+        var crt = content.GetComponent<RectTransform>();
+        crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
+        crt.offsetMin = new Vector2(10f, 12f); crt.offsetMax = new Vector2(-10f, -10f);
+        var vlg = content.AddComponent<VerticalLayoutGroup>();
+        vlg.spacing = 9f;
+        vlg.childControlWidth = true; vlg.childForceExpandWidth = true;
+        vlg.childControlHeight = true; vlg.childForceExpandHeight = false;
+
+        // 헤더 밴드: "시선 N" + 하단 강조선
+        var header = MakeBlock(content.transform, 46f, new Color(accent.r * 0.32f, accent.g * 0.30f, accent.b * 0.34f, 0.6f));
+        var headerTxt = AddBlockText(header.transform, $"시선 {threshold}", 30f, FontStyles.Bold,
+            new Color(Mathf.Min(1f, accent.r + 0.32f), Mathf.Min(1f, accent.g + 0.28f), Mathf.Min(1f, accent.b + 0.32f), 1f),
+            TextAlignmentOptions.Center);
+        var hLine = MakeRect(header.transform, Vector2.zero, Vector2.zero, accent);
+        var hlrt = hLine.rectTransform;
+        hlrt.anchorMin = new Vector2(0f, 0f); hlrt.anchorMax = new Vector2(1f, 0f); hlrt.pivot = new Vector2(0.5f, 0f);
+        hlrt.offsetMin = new Vector2(8f, 0f); hlrt.offsetMax = new Vector2(-8f, 3f); hlrt.anchoredPosition = Vector2.zero;
+        hLine.raycastTarget = false;
+
+        // 이름
+        var nameBlock = MakeBlock(content.transform, 52f, new Color(0f, 0f, 0f, 0f));
+        var nameTxt = AddBlockText(nameBlock.transform, "", 34f, FontStyles.Bold, colTextLight, TextAlignmentOptions.Center);
+
+        // 버프 / 디버프 패널
+        TextMeshProUGUI buffTxt, debuffTxt;
+        BuildStatPanel(content.transform, "버프", colBuffBg, colBuffTag, out buffTxt);
+        BuildStatPanel(content.transform, "디버프", colDebuffBg, colDebuffTag, out debuffTxt);
+
+        var ui = new EffectCardUI
+        {
+            root = cardGO, image = frame, button = btn,
+            headerText = headerTxt, nameText = nameTxt, buffText = buffTxt, debuffText = debuffTxt
+        };
+        FillEffectCard(ui, threshold);
+        return ui;
+    }
+
+    void FillEffectCard(EffectCardUI ui, int threshold)
+    {
+        var gem = GazeEffectManager.Instance;
+        var e = gem != null ? gem.GetEffectAt(threshold) : null;
+        if (ui.nameText != null) ui.nameText.text = e != null ? e.displayName : "(미배정)";
+        if (ui.buffText != null) ui.buffText.text = (e != null && !string.IsNullOrEmpty(e.buffDescription)) ? e.buffDescription : "—";
+        if (ui.debuffText != null) ui.debuffText.text = (e != null && !string.IsNullOrEmpty(e.debuffDescription)) ? e.debuffDescription : "—";
+    }
+
+    // 세로 스택용 고정/가변 높이 블록
+    Image MakeBlock(Transform parent, float height, Color bg)
+    {
+        var go = new GameObject("Block", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        go.transform.SetParent(parent, false);
+        var img = go.GetComponent<Image>(); img.color = bg; img.raycastTarget = false;
+        var le = go.GetComponent<LayoutElement>(); le.preferredHeight = height;
+        return img;
+    }
+
+    TextMeshProUGUI AddBlockText(Transform parent, string text, float size, FontStyles style, Color col, TextAlignmentOptions align)
+    {
+        var go = new GameObject("Text", typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(6f, 2f); rt.offsetMax = new Vector2(-6f, -2f);
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = text; tmp.fontSize = size; tmp.fontStyle = style; tmp.color = col;
+        tmp.alignment = align; tmp.enableWordWrapping = true; tmp.raycastTarget = false;
+        return tmp;
+    }
+
+    // 버프/디버프 패널: 좌측 accent 바 + 태그 + 내용
+    void BuildStatPanel(Transform parent, string tag, Color bg, Color tagCol, out TextMeshProUGUI contentText)
+    {
+        var panel = new GameObject($"Panel_{tag}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+        panel.transform.SetParent(parent, false);
+        var img = panel.GetComponent<Image>(); img.color = bg; img.raycastTarget = false;
+        var le = panel.GetComponent<LayoutElement>(); le.flexibleHeight = 1f; le.minHeight = 92f;
+
+        var bar = MakeRect(panel.transform, Vector2.zero, Vector2.zero, tagCol);
+        var brt = bar.rectTransform;
+        brt.anchorMin = new Vector2(0f, 0f); brt.anchorMax = new Vector2(0f, 1f); brt.pivot = new Vector2(0f, 0.5f);
+        brt.sizeDelta = new Vector2(5f, 0f); brt.anchoredPosition = Vector2.zero;
+        bar.raycastTarget = false;
+
+        var tagGO = new GameObject("Tag", typeof(RectTransform));
+        tagGO.transform.SetParent(panel.transform, false);
+        var trt = tagGO.GetComponent<RectTransform>();
+        trt.anchorMin = new Vector2(0f, 1f); trt.anchorMax = new Vector2(1f, 1f); trt.pivot = new Vector2(0f, 1f);
+        trt.anchoredPosition = new Vector2(14f, -7f); trt.sizeDelta = new Vector2(-20f, 24f);
+        var ttmp = tagGO.AddComponent<TextMeshProUGUI>();
+        ttmp.text = tag; ttmp.fontSize = 20f; ttmp.fontStyle = FontStyles.Bold; ttmp.color = tagCol;
+        ttmp.alignment = TextAlignmentOptions.Left; ttmp.raycastTarget = false;
+
+        var cGO = new GameObject("Content", typeof(RectTransform));
+        cGO.transform.SetParent(panel.transform, false);
+        var crt = cGO.GetComponent<RectTransform>();
+        crt.anchorMin = Vector2.zero; crt.anchorMax = Vector2.one;
+        crt.offsetMin = new Vector2(14f, 8f); crt.offsetMax = new Vector2(-10f, -32f);
+        var ctmp = cGO.AddComponent<TextMeshProUGUI>();
+        ctmp.text = ""; ctmp.fontSize = 21f; ctmp.color = colTextLight;
+        ctmp.alignment = TextAlignmentOptions.TopLeft; ctmp.enableWordWrapping = true; ctmp.raycastTarget = false;
+        contentText = ctmp;
+    }
+
+    // 효과 교체 모달 항목: 이름 + 버프/디버프 라인
+    void BuildEffectSwapEntry(Transform parent, GazeEffectData effect, System.Action onClick)
+    {
+        var entry = new GameObject("Entry", typeof(RectTransform), typeof(Image), typeof(Button));
+        entry.transform.SetParent(parent, false);
+        entry.GetComponent<RectTransform>().sizeDelta = new Vector2(1020f, 144f);
+        var img = entry.GetComponent<Image>(); img.color = new Color(0.15f, 0.11f, 0.21f, 1f);
+        var btn = entry.GetComponent<Button>(); btn.targetGraphic = img;
+        btn.onClick.AddListener(() => onClick?.Invoke());
+        if (entry.GetComponent<HoverScale>() == null) { var h = entry.AddComponent<HoverScale>(); h.hoverScale = 1.015f; }
+
+        var nameGO = new GameObject("Name", typeof(RectTransform));
+        nameGO.transform.SetParent(entry.transform, false);
+        var nrt = nameGO.GetComponent<RectTransform>();
+        nrt.anchorMin = new Vector2(0f, 1f); nrt.anchorMax = new Vector2(1f, 1f); nrt.pivot = new Vector2(0f, 1f);
+        nrt.anchoredPosition = new Vector2(20f, -8f); nrt.sizeDelta = new Vector2(-40f, 44f);
+        var ntmp = nameGO.AddComponent<TextMeshProUGUI>();
+        ntmp.text = effect != null ? effect.displayName : "";
+        ntmp.fontSize = 30f; ntmp.fontStyle = FontStyles.Bold; ntmp.color = colTextLight;
+        ntmp.alignment = TextAlignmentOptions.Left; ntmp.raycastTarget = false;
+
+        string buff = (effect != null && !string.IsNullOrEmpty(effect.buffDescription)) ? effect.buffDescription : "—";
+        string deb = (effect != null && !string.IsNullOrEmpty(effect.debuffDescription)) ? effect.debuffDescription : "—";
+        BuildStatLine(entry.transform, "버프", colBuffBg, colBuffTag, buff, new Vector2(16f, -58f), new Vector2(988f, 38f));
+        BuildStatLine(entry.transform, "디버프", colDebuffBg, colDebuffTag, deb, new Vector2(16f, -100f), new Vector2(988f, 38f));
+    }
+
+    void BuildStatLine(Transform parent, string tag, Color bg, Color tagCol, string text, Vector2 pos, Vector2 size)
+    {
+        var row = new GameObject($"Line_{tag}", typeof(RectTransform), typeof(Image));
+        row.transform.SetParent(parent, false);
+        var rt = row.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(0f, 1f); rt.pivot = new Vector2(0f, 1f);
+        rt.anchoredPosition = pos; rt.sizeDelta = size;
+        var img = row.GetComponent<Image>(); img.color = bg; img.raycastTarget = false;
+
+        var bar = MakeRect(row.transform, Vector2.zero, Vector2.zero, tagCol);
+        var brt = bar.rectTransform;
+        brt.anchorMin = new Vector2(0f, 0f); brt.anchorMax = new Vector2(0f, 1f); brt.pivot = new Vector2(0f, 0.5f);
+        brt.sizeDelta = new Vector2(4f, 0f); brt.anchoredPosition = Vector2.zero; bar.raycastTarget = false;
+
+        var tagGO = new GameObject("Tag", typeof(RectTransform));
+        tagGO.transform.SetParent(row.transform, false);
+        var trt = tagGO.GetComponent<RectTransform>();
+        trt.anchorMin = new Vector2(0f, 0f); trt.anchorMax = new Vector2(0f, 1f); trt.pivot = new Vector2(0f, 0.5f);
+        trt.anchoredPosition = new Vector2(14f, 0f); trt.sizeDelta = new Vector2(86f, 0f);
+        var ttmp = tagGO.AddComponent<TextMeshProUGUI>();
+        ttmp.text = tag; ttmp.fontSize = 20f; ttmp.fontStyle = FontStyles.Bold; ttmp.color = tagCol;
+        ttmp.alignment = TextAlignmentOptions.Left; ttmp.raycastTarget = false;
+
+        var cGO = new GameObject("Content", typeof(RectTransform));
+        cGO.transform.SetParent(row.transform, false);
+        var crt = cGO.GetComponent<RectTransform>();
+        crt.anchorMin = new Vector2(0f, 0f); crt.anchorMax = new Vector2(1f, 1f); crt.pivot = new Vector2(0f, 0.5f);
+        crt.offsetMin = new Vector2(108f, 0f); crt.offsetMax = new Vector2(-12f, 0f);
+        var ctmp = cGO.AddComponent<TextMeshProUGUI>();
+        ctmp.text = text; ctmp.fontSize = 21f; ctmp.color = colTextLight;
+        ctmp.alignment = TextAlignmentOptions.Left; ctmp.enableWordWrapping = false; ctmp.raycastTarget = false;
+        ctmp.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    // ─── 배경: 거의 검정 + 은은한 비네트 ─────────────────────────────
+    void BuildAtmosphere()
+    {
+        var bg = root.Find("Background");
+        int vigIndex = 0;
+        if (bg != null)
+        {
+            var bi = bg.GetComponent<Image>();
+            if (bi != null) bi.color = new Color(0.035f, 0.025f, 0.05f, 1f); // 거의 검정 (살짝 보랏빛)
+            bg.SetSiblingIndex(0);
+            vigIndex = 1;
+        }
+
+        // 가장자리만 서서히 어두워지는 비네트 (카드 뒤)
+        var vig = new GameObject("Vignette", typeof(RectTransform), typeof(Image));
+        vig.transform.SetParent(root, false);
+        StretchFull(vig.GetComponent<RectTransform>());
+        vig.transform.SetSiblingIndex(vigIndex);
+        var vimg = vig.GetComponent<Image>();
+        vimg.sprite = GetVignetteSprite();
+        vimg.color = new Color(0f, 0f, 0f, 0.75f);
+        vimg.raycastTarget = false;
+    }
+
+    void StretchFull(RectTransform rt)
+    {
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = rt.offsetMax = Vector2.zero;
+    }
+
+    // ─── 절차생성 비네트 스프라이트 ──────────────────────────────
+    Sprite GetVignetteSprite() { if (_spVignette == null) _spVignette = MakeVignetteSprite(128); return _spVignette; }
+
+    Sprite MakeVignetteSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        float r = size * 0.5f;
+        var px = new Color[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = Mathf.Sqrt((x - r) * (x - r) + (y - r) * (y - r)) / r;
+                float a = Mathf.Clamp01((d - 0.6f) / 0.4f);
+                a = a * a;
+                px[y * size + x] = new Color(0f, 0f, 0f, a);
+            }
+        tex.SetPixels(px); tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+
     class UIRef
     {
         public GameObject gameObject;
@@ -1116,11 +1578,12 @@ public class BrandNodeManager : MonoBehaviour
     class EffectCardUI
     {
         public GameObject root;
-        public Image image;
+        public Image image;            // 카드 외곽(테두리) 프레임
         public Button button;
+        public TextMeshProUGUI headerText;
         public TextMeshProUGUI nameText;
-        public TextMeshProUGUI descText;
-        public GameObject lockX;
+        public TextMeshProUGUI buffText;
+        public TextMeshProUGUI debuffText;
     }
 
     class CardItemUI
@@ -1128,5 +1591,37 @@ public class BrandNodeManager : MonoBehaviour
         public GameObject root;
         public Image frameBg;            // 외곽 프레임 (등급 색)
         public Color baseFrameColor;     // 등급 색 원본
+    }
+}
+
+// 마우스 오버 시 살짝 떠오르는(확대) 효과. 잠금 시 Disable() 호출.
+public class HoverScale : MonoBehaviour,
+    UnityEngine.EventSystems.IPointerEnterHandler,
+    UnityEngine.EventSystems.IPointerExitHandler
+{
+    public float hoverScale = 1.04f;
+    public float speed = 12f;
+    Vector3 target = Vector3.one;
+
+    public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e)
+    {
+        if (enabled) target = Vector3.one * hoverScale;
+    }
+
+    public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e)
+    {
+        target = Vector3.one;
+    }
+
+    void Update()
+    {
+        transform.localScale = Vector3.Lerp(transform.localScale, target, Time.deltaTime * speed);
+    }
+
+    public void Disable()
+    {
+        target = Vector3.one;
+        transform.localScale = Vector3.one;
+        enabled = false; // Update 정지 → 각인 연출의 펀치 스케일과 충돌 없음
     }
 }
