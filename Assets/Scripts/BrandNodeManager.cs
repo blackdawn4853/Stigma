@@ -1601,16 +1601,21 @@ public class HoverScale : MonoBehaviour,
 {
     public float hoverScale = 1.04f;
     public float speed = 12f;
+    Vector3 baseScale = Vector3.one; // 원래 스케일 기준 — 노드맵처럼 1이 아닌 경우도 대응
     Vector3 target = Vector3.one;
+    bool captured;
+
+    void Awake() => Capture();
+    void Capture() { if (!captured) { baseScale = transform.localScale; target = baseScale; captured = true; } }
 
     public void OnPointerEnter(UnityEngine.EventSystems.PointerEventData e)
     {
-        if (enabled) target = Vector3.one * hoverScale;
+        if (enabled) target = baseScale * hoverScale;
     }
 
     public void OnPointerExit(UnityEngine.EventSystems.PointerEventData e)
     {
-        target = Vector3.one;
+        target = baseScale;
     }
 
     void Update()
@@ -1620,8 +1625,8 @@ public class HoverScale : MonoBehaviour,
 
     public void Disable()
     {
-        target = Vector3.one;
-        transform.localScale = Vector3.one;
+        target = baseScale;
+        transform.localScale = baseScale;
         enabled = false; // Update 정지 → 각인 연출의 펀치 스케일과 충돌 없음
     }
 }

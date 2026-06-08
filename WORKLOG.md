@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-06-08 — [데탑] 노드맵 꾸미기 + HUD 리뉴얼 + 상점 신규 구현
+
+- **노드맵 배경**: 회색(카메라) → ScrollRect 배경 이미지를 **플랫 단색(머스터드 노란, 인스펙터 `mapBackgroundColor` 노출)**으로 교체. (그라데이션·비네트는 시도했다 "어둑/구분안됨" 피드백으로 단색 확정. ScrollRect 반투명 흰 배경이 회색 워시 원인이었음)
+- **노드 비주얼 리뉴얼** (`MapNodeUI` 전면 재작성, 런타임 절차생성): 어두운 돌 본체 + 타입색 룬 테두리 + 타입 엠블럼(시작 점/전투 X/상점 동전/이벤트 다이아/낙인 8각별/보스 눈) + 갈수있는곳 호흡 글로우 + 현재위치 금빛 펄스링 + 방문/잠금 어둡게 + 보스 1.55배. 음산 톤다운 팔레트(밝은 원색이 "장난같다"는 피드백). 마우스 호버 확대.
+  - `HoverScale`(BrandNodeManager): 기본 스케일을 1 고정 → **현재 스케일 기준(Awake 캡처)**으로 일반화(노드맵 mapScale 1.5 대응).
+- **상단 HUD 리뉴얼** (`HUDManager`): 한 줄 다닥다닥 → **좌(HP/골드 크게)·중앙(시선+효과 pip 5개)·우(층/보스)** 3그룹 분리. placeholder 사각형 → 코드 하트/코인 아이콘. 시선효과 5칸을 작은 점(pip)으로 정리(B안).
+- **상점 신규 구현**: 기존 `ShopManager.cs`+`Shop.unity` **삭제**(전임자 포기분) → `ShopUI.cs` 신규. 노드맵 위 **오버레이**(sortingOrder 900, HUD 아래라 HUD 골드 그대로 사용). 카드 N장(allCards 풀, 폴백 startingDeck) + 등급별 가격(고정+약간랜덤) **카드 아래 표시**, 못 사면 **카드 회색+가격 빨강**. 회복 포션(+25/35골드 1회), 리롤(20골드), 돌아가기. `MapSceneManager` Shop 케이스 → `ShopUI.Spawn`.
+- **씬 값 수정**(요청): `NodeMap.unity` MapGenerator `shopChance 0→25`, combat 60→55 (브랜드 나머지=20). shopChance가 0이라 상점 노드가 안 떴던 것.
+- **외신 조우 닫기 전환**: 선택 후 일러스트/검정 2단계 비침 → 독립 캔버스 암전으로 '검정 덮기→맵 드러내기' 대칭 전환.
+- **(주의) `ShopUI.cs.meta` 손상 재발** — Write로 만든 .cs의 메타가 guid 두 줄만 생성됨. MonoImporter 블록 보강 후 커밋(StartEncounter 때와 동일 이슈).
+
+---
+
 ## 2026-06-08 — [데탑] 외신 조우(StartEncounter) 일러스트·가독성·진입 개선 + .meta 손상 버그 수정
 
 - **버그(중요): `StartEncounterUI.cs.meta` 손상 복구** — 맥북에서 커밋된 메타가 `fileFormatVersion`+`guid` 두 줄뿐(MonoImporter 블록 누락)이라, 데스크탑 체크아웃에서 Unity가 `StartEncounterUI.cs`를 컴파일 안 함 → `MapSceneManager`에서 `CS0103` → 외신 조우 호출이 아예 빠진 예전 빌드로 돌아 **스타트 시 조우가 안 떴음**. 표준 MonoImporter 블록 보강(GUID 유지)으로 해결.

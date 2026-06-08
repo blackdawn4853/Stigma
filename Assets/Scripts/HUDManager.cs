@@ -233,30 +233,10 @@ public class HUDManager : MonoBehaviour
             bImg.raycastTarget = false;
         }
 
-        // 슬롯 컨테이너 — 바 안쪽에 좌측 정렬
-        GameObject slotContainer = new GameObject("Slots", typeof(RectTransform));
-        slotContainer.transform.SetParent(rootRT, false);
-        var slotRT = (RectTransform)slotContainer.transform;
-        slotRT.anchorMin = new Vector2(0f, 0.5f);
-        slotRT.anchorMax = new Vector2(0f, 0.5f);
-        slotRT.pivot = new Vector2(0f, 0.5f);
-        slotRT.anchoredPosition = new Vector2(hudLeftPadding, 0f);
-        slotRT.sizeDelta = new Vector2(2000f, hudHeight);
-
-        // 슬롯 좌→우 배치 (cursorX 누적)
-        float cursorX = 0f;
-
-        cursorX = BuildHpSlot(slotRT, font, cursorX);
-        cursorX += slotGap;
-        cursorX = BuildGoldSlot(slotRT, font, cursorX);
-        cursorX += slotGap;
-        cursorX = BuildFloorSlot(slotRT, font, cursorX);
-        cursorX += slotGap;
-        cursorX = BuildBossSlot(slotRT, cursorX);
-        cursorX += slotGap;
-        cursorX = BuildGazeSlot(slotRT, font, cursorX);
-        cursorX += slotGap;
-        cursorX = BuildEffectsRow(slotRT, cursorX);
+        // 좌(자원) / 중앙(시선) / 우(진행) 3그룹으로 분리 배치
+        BuildLeftCluster(rootRT, font);
+        BuildCenterCluster(rootRT, font);
+        BuildRightCluster(rootRT, font);
 
         // 툴팁
         BuildTooltip(font);
@@ -320,61 +300,67 @@ public class HUDManager : MonoBehaviour
         return t;
     }
 
-    float BuildHpSlot(RectTransform parent, TMP_FontAsset font, float x)
+    // ═══ 좌측 클러스터: HP + 골드 (핵심 자원, 크게) ═══
+    void BuildLeftCluster(RectTransform bar, TMP_FontAsset font)
     {
-        var slot = CreateSlot(parent, "HpSlot", x, hpSlotWidth);
-        AddIcon(slot, "Icon", hpIcon, iconHpPlaceholder, hudHeight - 12f, 4f);
-        hpText = AddText(slot, "Text", font, 22f, hudHeight, 4f);
-        hpText.textWrappingMode = TextWrappingModes.NoWrap;
-        AddHover(slot, () => BuildHpTooltip());
-        return x + hpSlotWidth;
+        var c = NewCluster(bar, "LeftCluster", 0f, hudLeftPadding);
+        float x = 0f;
+        x = BuildResChip(c, font, "HpSlot", x, 156f, true, () => BuildHpTooltip(), out hpText);
+        x += 26f;
+        BuildResChip(c, font, "GoldSlot", x, 124f, false, () => BuildGoldTooltip(), out goldText);
     }
 
-    float BuildGoldSlot(RectTransform parent, TMP_FontAsset font, float x)
+    // ═══ 우측 클러스터: 층/막 + 보스 (진행 정보, 보조) ═══
+    void BuildRightCluster(RectTransform bar, TMP_FontAsset font)
     {
-        var slot = CreateSlot(parent, "GoldSlot", x, goldSlotWidth);
-        AddIcon(slot, "Icon", goldIcon, iconGoldPlaceholder, hudHeight - 12f, 4f);
-        goldText = AddText(slot, "Text", font, 22f, hudHeight, 4f);
-        goldText.textWrappingMode = TextWrappingModes.NoWrap;
-        AddHover(slot, () => BuildGoldTooltip());
-        return x + goldSlotWidth;
-    }
+        var c = NewCluster(bar, "RightCluster", 1f, hudRightPadding);
 
-    float BuildFloorSlot(RectTransform parent, TMP_FontAsset font, float x)
-    {
-        var slot = CreateSlot(parent, "FloorSlot", x, floorSlotWidth);
-        floorText = AddText(slot, "Text", font, 22f, 8f, 4f, TextAlignmentOptions.Center);
+        float bossSize = hudHeight - 16f;
+        var bossGO = new GameObject("BossSlot", typeof(RectTransform), typeof(Image));
+        bossGO.transform.SetParent(c, false);
+        var brt = (RectTransform)bossGO.transform;
+        brt.anchorMin = brt.anchorMax = new Vector2(1f, 0.5f);
+        brt.pivot = new Vector2(1f, 0.5f);
+        brt.anchoredPosition = Vector2.zero;
+        brt.sizeDelta = new Vector2(bossSize, hudHeight);
+        var bimg = bossGO.GetComponent<Image>();
+        bimg.color = new Color(0, 0, 0, 0); bimg.raycastTarget = true;
+        bossIconImg = AddIcon(brt, "Icon", null, iconBossPlaceholder, bossSize, 0f);
+        AddHover(brt, () => BuildBossTooltip());
+
+        var floorGO = new GameObject("FloorText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        floorGO.transform.SetParent(c, false);
+        var frt = (RectTransform)floorGO.transform;
+        frt.anchorMin = frt.anchorMax = new Vector2(1f, 0.5f);
+        frt.pivot = new Vector2(1f, 0.5f);
+        frt.anchoredPosition = new Vector2(-(bossSize + 12f), 0f);
+        frt.sizeDelta = new Vector2(220f, hudHeight);
+        floorText = floorGO.GetComponent<TextMeshProUGUI>();
+        floorText.font = font; floorText.fontSize = 20f; floorText.color = textColor;
+        floorText.alignment = TextAlignmentOptions.MidlineRight;
         floorText.textWrappingMode = TextWrappingModes.NoWrap;
-        AddHover(slot, () => BuildFloorTooltip());
-        return x + floorSlotWidth;
+        floorText.raycastTarget = true;
+        AddHover(frt, () => BuildFloorTooltip());
     }
 
-    float BuildBossSlot(RectTransform parent, float x)
+    // ═══ 중앙 클러스터: 시선(노드맵=숫자/전투=바) + 효과 pip 5개 ═══
+    void BuildCenterCluster(RectTransform bar, TMP_FontAsset font)
     {
-        var slot = CreateSlot(parent, "BossSlot", x, bossSlotWidth);
-        bossIconImg = AddIcon(slot, "Icon", null, iconBossPlaceholder, hudHeight - 8f, 4f);
-        AddHover(slot, () => BuildBossTooltip());
-        return x + bossSlotWidth;
-    }
+        var c = NewCluster(bar, "CenterCluster", 0.5f, 0f);
+        c.sizeDelta = new Vector2(360f, hudHeight);
 
-    float BuildGazeSlot(RectTransform parent, TMP_FontAsset font, float x)
-    {
-        var slot = CreateSlot(parent, "GazeSlot", x, gazeSlotWidth);
-        gazeIconImg = AddIcon(slot, "Icon", gazeIcon, iconGazePlaceholder, hudHeight - 12f, 4f);
+        const float gazeW = 190f;
 
-        // Bar (전투 모드)
-        float barLeft = hudHeight + 4f;
+        // 시선 바 (전투) — 배경
         GameObject barBgGO = new GameObject("GazeBarBg", typeof(RectTransform), typeof(Image));
-        barBgGO.transform.SetParent(slot, false);
+        barBgGO.transform.SetParent(c, false);
         gazeBarRect = (RectTransform)barBgGO.transform;
-        gazeBarRect.anchorMin = new Vector2(0f, 0.5f);
-        gazeBarRect.anchorMax = new Vector2(0f, 0.5f);
+        gazeBarRect.anchorMin = gazeBarRect.anchorMax = new Vector2(0f, 0.5f);
         gazeBarRect.pivot = new Vector2(0f, 0.5f);
-        gazeBarRect.anchoredPosition = new Vector2(barLeft, 0f);
-        gazeBarRect.sizeDelta = new Vector2(gazeSlotWidth - barLeft - 4f, hudHeight - 18f);
-        var bgImg = barBgGO.GetComponent<Image>();
-        bgImg.color = gazeBarBgColor;
-        bgImg.raycastTarget = false;
+        gazeBarRect.anchoredPosition = new Vector2(0f, 0f);
+        gazeBarRect.sizeDelta = new Vector2(gazeW, hudHeight - 30f);
+        var gbg = barBgGO.GetComponent<Image>();
+        gbg.color = gazeBarBgColor; gbg.raycastTarget = false;
 
         GameObject sliderGO = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
         sliderGO.transform.SetParent(gazeBarRect, false);
@@ -384,82 +370,160 @@ public class HUDManager : MonoBehaviour
         GameObject fillArea = new GameObject("FillArea", typeof(RectTransform));
         fillArea.transform.SetParent(sRt, false);
         var faRt = (RectTransform)fillArea.transform;
-        faRt.anchorMin = Vector2.zero; faRt.anchorMax = Vector2.one;
-        faRt.offsetMin = Vector2.zero; faRt.offsetMax = Vector2.zero;
-        GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
-        fill.transform.SetParent(faRt, false);
-        var fRt = (RectTransform)fill.transform;
-        fRt.anchorMin = Vector2.zero; fRt.anchorMax = Vector2.one;
-        fRt.offsetMin = Vector2.zero; fRt.offsetMax = Vector2.zero;
-        gazeBarFill = fill.GetComponent<Image>();
-        gazeBarFill.color = gazeBarFillColor;
-        gazeBarFill.raycastTarget = false;
+        faRt.anchorMin = Vector2.zero; faRt.anchorMax = Vector2.one; faRt.offsetMin = faRt.offsetMax = Vector2.zero;
+        GameObject fillGO = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillGO.transform.SetParent(faRt, false);
+        var fRt = (RectTransform)fillGO.transform;
+        fRt.anchorMin = Vector2.zero; fRt.anchorMax = Vector2.one; fRt.offsetMin = fRt.offsetMax = Vector2.zero;
+        gazeBarFill = fillGO.GetComponent<Image>();
+        gazeBarFill.color = gazeBarFillColor; gazeBarFill.raycastTarget = false;
         gazeBar = sliderGO.GetComponent<Slider>();
         gazeBar.transition = Selectable.Transition.None;
-        gazeBar.fillRect = fRt;
-        gazeBar.targetGraphic = null;
-        gazeBar.minValue = 0f; gazeBar.maxValue = 1f; gazeBar.value = 0f;
-        gazeBar.interactable = false;
+        gazeBar.fillRect = fRt; gazeBar.targetGraphic = null;
+        gazeBar.minValue = 0f; gazeBar.maxValue = 1f; gazeBar.value = 0f; gazeBar.interactable = false;
 
-        // Text (노드맵 모드 또는 바 위 오버레이)
-        gazeText = AddText(slot, "Text", font, 20f, barLeft, 4f, TextAlignmentOptions.Center);
+        // 시선 텍스트 (항상) — 바 위/단독 오버레이 (바와 별개라 노드맵에서도 보임)
+        GameObject gtGO = new GameObject("GazeText", typeof(RectTransform), typeof(TextMeshProUGUI));
+        gtGO.transform.SetParent(c, false);
+        var gtRt = (RectTransform)gtGO.transform;
+        gtRt.anchorMin = gtRt.anchorMax = new Vector2(0f, 0.5f);
+        gtRt.pivot = new Vector2(0f, 0.5f);
+        gtRt.anchoredPosition = new Vector2(0f, 0f);
+        gtRt.sizeDelta = new Vector2(gazeW, hudHeight);
+        gazeText = gtGO.GetComponent<TextMeshProUGUI>();
+        gazeText.font = font; gazeText.fontSize = 22f; gazeText.color = textColor;
+        gazeText.alignment = TextAlignmentOptions.Center;
         gazeText.textWrappingMode = TextWrappingModes.NoWrap;
+        gazeText.raycastTarget = false;
 
-        AddHover(slot, () => BuildGazeTooltip());
-        return x + gazeSlotWidth;
-    }
+        // 시선 호버 영역
+        var gazeHover = CreateSlot(c, "GazeHover", 0f, gazeW);
+        AddHover(gazeHover, () => BuildGazeTooltip());
 
-    float BuildEffectsRow(RectTransform parent, float x)
-    {
+        // 효과 pip 5개 (작은 점 — 활성/비활성 색)
         int[] thresholds = { 20, 40, 60, 80, 100 };
+        const float pipSize = 18f, pipGap = 9f;
+        float px = gazeW + 18f;
         for (int i = 0; i < thresholds.Length; i++)
         {
             int t = thresholds[i];
-            float xi = x + i * (effectIconSize + effectIconGap);
-
-            GameObject slotGO = new GameObject($"Effect_{t}", typeof(RectTransform), typeof(Image));
-            slotGO.transform.SetParent(parent, false);
-            var rt = (RectTransform)slotGO.transform;
-            rt.anchorMin = new Vector2(0f, 0.5f);
-            rt.anchorMax = new Vector2(0f, 0.5f);
+            float xi = px + i * (pipSize + pipGap);
+            GameObject pipGO = new GameObject($"Pip_{t}", typeof(RectTransform), typeof(Image));
+            pipGO.transform.SetParent(c, false);
+            var rt = (RectTransform)pipGO.transform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
             rt.pivot = new Vector2(0f, 0.5f);
             rt.anchoredPosition = new Vector2(xi, 0f);
-            rt.sizeDelta = new Vector2(effectIconSize, effectIconSize);
-            var bg = slotGO.GetComponent<Image>();
-            bg.color = effectInactiveColor;
-            bg.raycastTarget = true;
-
-            // 내부 아이콘 (GazeEffectData.icon 채움 — 비어있으면 숨김, 라벨 표시)
-            GameObject iconGO = new GameObject("Icon", typeof(RectTransform), typeof(Image));
-            iconGO.transform.SetParent(rt, false);
-            var iRt = (RectTransform)iconGO.transform;
-            iRt.anchorMin = Vector2.zero; iRt.anchorMax = Vector2.one;
-            iRt.offsetMin = new Vector2(4f, 4f); iRt.offsetMax = new Vector2(-4f, -4f);
-            var iconImg = iconGO.GetComponent<Image>();
-            iconImg.raycastTarget = false;
-            iconImg.preserveAspect = true;
-            iconImg.enabled = false; // 데이터 도착 시 활성화
-
-            // 임계값 라벨 (placeholder — 아이콘 없을 때 보이는 숫자)
-            GameObject lblGO = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-            lblGO.transform.SetParent(rt, false);
-            var lRt = (RectTransform)lblGO.transform;
-            lRt.anchorMin = Vector2.zero; lRt.anchorMax = Vector2.one;
-            lRt.offsetMin = Vector2.zero; lRt.offsetMax = Vector2.zero;
-            var lt = lblGO.GetComponent<TextMeshProUGUI>();
-            lt.text = t.ToString();
-            lt.font = TMP_Settings.defaultFontAsset;
-            lt.fontSize = 16f;
-            lt.color = textColor;
-            lt.alignment = TextAlignmentOptions.Center;
-            lt.raycastTarget = false;
-
+            rt.sizeDelta = new Vector2(pipSize, pipSize);
+            var img = pipGO.GetComponent<Image>();
+            img.sprite = GetCircleSprite();
+            img.color = effectInactiveColor;
+            img.raycastTarget = true;
             int captured = t;
             AddHover(rt, () => BuildEffectTooltip(captured));
-
-            effectSlots.Add(new EffectSlotRefs { threshold = t, bg = bg, iconImg = iconImg });
+            effectSlots.Add(new EffectSlotRefs { threshold = t, bg = img, iconImg = null });
         }
-        return x + thresholds.Length * effectIconSize + (thresholds.Length - 1) * effectIconGap;
+    }
+
+    // ─── 클러스터/칩/아이콘 헬퍼 ─────────────────────────────────────
+    RectTransform NewCluster(RectTransform parent, string name, float anchorX, float padX)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(parent, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(anchorX, 0.5f);
+        rt.pivot = new Vector2(anchorX, 0.5f);
+        float px = anchorX <= 0f ? padX : (anchorX >= 1f ? -padX : 0f);
+        rt.anchoredPosition = new Vector2(px, 0f);
+        rt.sizeDelta = new Vector2(10f, hudHeight);
+        return rt;
+    }
+
+    float BuildResChip(RectTransform parent, TMP_FontAsset font, string name, float x, float width,
+                       bool isHp, TooltipFunc tip, out TextMeshProUGUI text)
+    {
+        var slot = CreateSlot(parent, name, x, width);
+        float iconSize = hudHeight - 22f;
+        if (isHp) BuildHeartIcon(slot, iconSize, 4f);
+        else BuildCoinIcon(slot, iconSize, 4f);
+        text = AddText(slot, "Text", font, 28f, iconSize + 14f, 4f, TextAlignmentOptions.MidlineLeft);
+        text.fontStyle = FontStyles.Bold;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        AddHover(slot, tip);
+        return x + width;
+    }
+
+    RectTransform NewIconHolder(RectTransform slot, string name, float size, float xOffset)
+    {
+        var go = new GameObject(name, typeof(RectTransform));
+        go.transform.SetParent(slot, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.anchoredPosition = new Vector2(xOffset, 0f);
+        rt.sizeDelta = new Vector2(size, size);
+        return rt;
+    }
+
+    // 하트 아이콘 (스프라이트 있으면 사용, 없으면 원 2개 + 다이아로 절차생성)
+    void BuildHeartIcon(RectTransform slot, float size, float xOffset)
+    {
+        if (hpIcon != null) { AddIcon(slot, "Icon", hpIcon, iconHpPlaceholder, size, xOffset); return; }
+        var holder = NewIconHolder(slot, "HpIcon", size, xOffset);
+        Color red = iconHpPlaceholder;
+        float u = size;
+        MakeShape(holder, null, new Vector2(u * 0.6f, u * 0.6f), new Vector2(0f, -u * 0.06f), 45f, red);
+        MakeShape(holder, GetCircleSprite(), new Vector2(u * 0.5f, u * 0.5f), new Vector2(-u * 0.19f, u * 0.17f), 0f, red);
+        MakeShape(holder, GetCircleSprite(), new Vector2(u * 0.5f, u * 0.5f), new Vector2(u * 0.19f, u * 0.17f), 0f, red);
+    }
+
+    // 코인 아이콘 (스프라이트 있으면 사용, 없으면 금색 원 + 안쪽 림)
+    void BuildCoinIcon(RectTransform slot, float size, float xOffset)
+    {
+        if (goldIcon != null) { AddIcon(slot, "Icon", goldIcon, iconGoldPlaceholder, size, xOffset); return; }
+        var holder = NewIconHolder(slot, "GoldIcon", size, xOffset);
+        Color gold = iconGoldPlaceholder;
+        MakeShape(holder, GetCircleSprite(), new Vector2(size, size), Vector2.zero, 0f, gold);
+        MakeShape(holder, GetCircleSprite(), new Vector2(size * 0.6f, size * 0.6f), Vector2.zero, 0f, Mul(gold, 0.7f));
+    }
+
+    Image MakeShape(RectTransform holder, Sprite sprite, Vector2 size, Vector2 pos, float rot, Color col)
+    {
+        var go = new GameObject("Shape", typeof(RectTransform), typeof(Image));
+        go.transform.SetParent(holder, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        rt.localRotation = Quaternion.Euler(0f, 0f, rot);
+        var img = go.GetComponent<Image>();
+        if (sprite != null) img.sprite = sprite;
+        img.color = col;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    static Color Mul(Color c, float f) => new Color(c.r * f, c.g * f, c.b * f, c.a);
+
+    static Sprite _hudCircle;
+    static Sprite GetCircleSprite()
+    {
+        if (_hudCircle == null)
+        {
+            int s = 64;
+            var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            float r = s * 0.5f;
+            var px = new Color[s * s];
+            for (int y = 0; y < s; y++)
+                for (int xx = 0; xx < s; xx++)
+                {
+                    float d = Mathf.Sqrt((xx - r) * (xx - r) + (y - r) * (y - r));
+                    px[y * s + xx] = new Color(1f, 1f, 1f, Mathf.Clamp01((r - 1f - d) / 1.5f));
+                }
+            tex.SetPixels(px); tex.Apply();
+            _hudCircle = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f);
+        }
+        return _hudCircle;
     }
 
     void BuildTooltip(TMP_FontAsset font)

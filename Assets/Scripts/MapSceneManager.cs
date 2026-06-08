@@ -20,6 +20,10 @@ public class MapSceneManager : MonoBehaviour
     [Tooltip("노드 크기 + 노드 간격을 함께 키우는 배율. 1 = 원본. 표시 시점에만 적용되므로 저장된 맵도 동일하게 확대된다.")]
     public float mapScale = 1.5f;
 
+    [Header("맵 배경 (플랫 단색)")]
+    [Tooltip("노드맵 배경색. 어두운 노드와 대비되는 음영진 노란(머스터드) 기본값.")]
+    public Color mapBackgroundColor = new Color(0.46f, 0.39f, 0.18f, 1f);
+
     private NodeData currentNode;
     private List<MapNodeUI> allNodeUIs = new List<MapNodeUI>();
     private Dictionary<NodeData, Vector2> nodeUIPositions = new Dictionary<NodeData, Vector2>();
@@ -34,6 +38,7 @@ public class MapSceneManager : MonoBehaviour
 
     void Start()
     {
+        BuildMapAtmosphere();
         GenerateAndDisplayMap();
     }
 
@@ -243,10 +248,8 @@ public class MapSceneManager : MonoBehaviour
                     SceneManager.LoadScene("BattleScene");
                 break;
             case NodeData.NodeType.Shop:
-                if (GameManager.Instance != null)
-                    GameManager.Instance.LoadShop();
-                else
-                    SceneManager.LoadScene("ShopScene");
+                // 별도 씬 대신 노드맵 위 오버레이로 상점을 띄움 (HUD 골드 그대로 사용)
+                ShopUI.Spawn(null);
                 break;
             case NodeData.NodeType.RandomEvent:
                 Debug.Log("랜덤 이벤트!");
@@ -292,8 +295,49 @@ public class MapSceneManager : MonoBehaviour
     void RefreshAllNodes()
     {
         foreach (var nodeUI in allNodeUIs)
+        {
+            nodeUI.SetCurrent(nodeUI.GetNodeData() == currentNode);
             nodeUI.UpdateVisual();
+        }
     }
 
     public NodeData GetCurrentNode() => currentNode;
+
+    // ════════════════════════════════════════════════════════════════
+    // 배경 — 플랫 단색 (어두운 노드와 대비). 그라데이션/비네트 없음.
+    // ScrollRect 의 배경 이미지(반투명 흰색 → 회색 워시)를 단색으로 교체.
+    // ════════════════════════════════════════════════════════════════
+    static Sprite _flatBg;
+
+    void BuildMapAtmosphere()
+    {
+        if (mapContainer == null) return;
+        var scroll = mapContainer.GetComponentInParent<ScrollRect>();
+        if (scroll == null) return;
+
+        var scrollImg = scroll.GetComponent<Image>();
+        if (scrollImg != null)
+        {
+            scrollImg.sprite = GetFlatSprite();
+            scrollImg.type = Image.Type.Simple;
+            scrollImg.color = mapBackgroundColor; // raycastTarget 유지 → 빈 영역 스크롤 정상
+        }
+
+        // 이전에 만든 비네트가 남아있으면 제거 (플랫 단색이라 불필요)
+        var oldVig = scroll.transform.Find("MapVignette");
+        if (oldVig != null) Destroy(oldVig.gameObject);
+    }
+
+    Sprite GetFlatSprite()
+    {
+        if (_flatBg == null)
+        {
+            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+            var px = new Color[16];
+            for (int i = 0; i < 16; i++) px[i] = Color.white;
+            tex.SetPixels(px); tex.Apply();
+            _flatBg = Sprite.Create(tex, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f), 100f);
+        }
+        return _flatBg;
+    }
 }

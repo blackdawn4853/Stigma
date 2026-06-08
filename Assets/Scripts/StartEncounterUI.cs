@@ -43,6 +43,9 @@ public class StartEncounterUI : MonoBehaviour
     TMP_FontAsset font;
     TMP_Text speakerText, bodyText, hintText, godTitle;
     GameObject dialogueBox;
+    Image transitionBlack;          // 화면 전환 암전 오버레이
+    RectTransform illustrationRT;    // 떠오름 연출용
+    CanvasGroup bannerGroup, boxGroup;
     Image namePlateBg;        // 화자 명패 배경(색으로 화자 구분)
     RectTransform namePlateRT;
     readonly List<GameObject> choiceButtons = new List<GameObject>();
@@ -77,11 +80,46 @@ public class StartEncounterUI : MonoBehaviour
     IEnumerator IntroSequence()
     {
         state = State.Intro;
-        group.alpha = 1f;   // 즉시 불투명 — 뒤의 노드맵이 잠깐도 안 보이게 첫 프레임부터 덮음
-        yield return null;  // 캔버스 1프레임 안정화 후 대사 시작
+        group.alpha = 1f;
+
+        // 초기: 화면 완전 암전 + 이름 띠/대사창 숨김 (노드맵은 검은 막 아래로 가려짐)
+        if (transitionBlack != null) transitionBlack.color = Color.black;
+        if (bannerGroup != null) bannerGroup.alpha = 0f;
+        if (boxGroup != null) boxGroup.alpha = 0f;
+        yield return null;
+
+        // 1) 암전 → 일러스트가 살짝 줌아웃하며 떠오름 + 이름 띠는 살짝 늦게 등장
+        float t = 0f, dur = 0.75f;
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            float p = Mathf.Clamp01(t / dur);
+            float e = 1f - (1f - p) * (1f - p); // ease-out
+            if (transitionBlack != null) transitionBlack.color = new Color(0f, 0f, 0f, 1f - e);
+            if (illustrationRT != null) illustrationRT.localScale = Vector3.one * Mathf.Lerp(1.05f, 1f, e);
+            if (bannerGroup != null) bannerGroup.alpha = Mathf.Clamp01((t - 0.45f) / 0.3f);
+            yield return null;
+        }
+        if (transitionBlack != null)
+        {
+            transitionBlack.color = new Color(0f, 0f, 0f, 0f);
+            transitionBlack.raycastTarget = false; // 닫을 때 재사용하므로 비활성화는 안 함
+        }
+        if (illustrationRT != null) illustrationRT.localScale = Vector3.one;
+        if (bannerGroup != null) bannerGroup.alpha = 1f;
+
+        // 2) 대사 시작 + 대사창 페이드인
         lineIndex = 0;
         state = State.Dialogue;
         ShowLine(def.lines[0]);
+        float t2 = 0f, d2 = 0.35f;
+        while (t2 < d2)
+        {
+            t2 += Time.unscaledDeltaTime;
+            if (boxGroup != null) boxGroup.alpha = Mathf.Clamp01(t2 / d2);
+            yield return null;
+        }
+        if (boxGroup != null) boxGroup.alpha = 1f;
     }
 
     void Update()
@@ -230,16 +268,33 @@ public class StartEncounterUI : MonoBehaviour
 
     IEnumerator CloseSequence()
     {
-        float t = 0f, dur = 0.4f;
-        float start = group.alpha;
+        // 1) 검은 막을 올려 화면 전체를 균일하게 암전 (일러스트→어두운패널 2단계 비침 없이 한 번에)
+        if (transitionBlack != null) transitionBlack.raycastTarget = true;
+        yield return FadeBlack(0f, 1f, 0.35f);
+
+        // 2) 완전 암전 상태에서 인카운터 내용 숨김 + 결과 확정
+        group.alpha = 0f;
+        onComplete?.Invoke();
+        yield return new WaitForSecondsRealtime(0.06f);
+
+        // 3) 검은 막을 내려 노드맵을 부드럽게 드러냄 (진입과 대칭)
+        yield return FadeBlack(1f, 0f, 0.45f);
+
+        if (transitionBlack != null) Destroy(transitionBlack.gameObject);
+        Destroy(gameObject);
+    }
+
+    IEnumerator FadeBlack(float from, float to, float dur)
+    {
+        if (transitionBlack == null) yield break;
+        float t = 0f;
         while (t < dur)
         {
             t += Time.unscaledDeltaTime;
-            group.alpha = Mathf.Lerp(start, 0f, t / dur);
+            transitionBlack.color = new Color(0f, 0f, 0f, Mathf.Lerp(from, to, t / dur));
             yield return null;
         }
-        onComplete?.Invoke();
-        Destroy(gameObject);
+        transitionBlack.color = new Color(0f, 0f, 0f, to);
     }
 
     // ── UI 절차생성 ──────────────────────────────────────────────
@@ -267,6 +322,7 @@ public class StartEncounterUI : MonoBehaviour
         brt.anchoredPosition = new Vector2(0f, -20f);
         brt.sizeDelta = new Vector2(920f, 150f);
         banner.raycastTarget = false;
+        bannerGroup = banner.gameObject.AddComponent<CanvasGroup>();
         Border(brt, new Color(def.godColor.r * 0.78f, def.godColor.g * 0.6f, def.godColor.b * 0.34f, 0.85f));
 
         // 이름 (배너 상단)
@@ -289,6 +345,20 @@ public class StartEncounterUI : MonoBehaviour
 
         // 선택지 버튼 3개 (숨김 상태로 미리 생성)
         BuildChoices();
+
+        // 화면 전환용 암전 — 인카운터 캔버스(group)와 독립된 별도 오버레이 캔버스(위)에서 제어.
+        // group.alpha 와 무관하게 켜고 끌 수 있어, 닫을 때 '검정 덮기 → 맵 드러내기'가 깔끔하게 됨.
+        var blackGO = new GameObject("StartEncounterBlack",
+            typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(Image));
+        var bcanvas = blackGO.GetComponent<Canvas>();
+        bcanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        bcanvas.sortingOrder = 2100; // 인카운터(2000)보다 위
+        var bscaler = blackGO.GetComponent<CanvasScaler>();
+        bscaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        bscaler.referenceResolution = new Vector2(1920f, 1080f);
+        transitionBlack = blackGO.GetComponent<Image>();
+        transitionBlack.color = Color.black;
+        transitionBlack.raycastTarget = true;
     }
 
     void BuildIllustration()
@@ -297,6 +367,7 @@ public class StartEncounterUI : MonoBehaviour
         var panel = NewImage(transform, "Illustration", new Color(0.04f, 0.03f, 0.05f, 1f));
         var rt = panel.rectTransform;
         Stretch(rt);
+        illustrationRT = rt;          // 떠오름(줌아웃) 연출 대상
         panel.raycastTarget = true;   // 뒤의 맵 클릭 차단
 
         if (def.illustration != null)
@@ -335,6 +406,7 @@ public class StartEncounterUI : MonoBehaviour
     {
         var box = NewImage(transform, "DialogueBox", new Color(0.05f, 0.04f, 0.06f, 0.93f));
         dialogueBox = box.gameObject;
+        boxGroup = dialogueBox.AddComponent<CanvasGroup>();
         var rt = box.rectTransform;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = new Vector2(0f, -350f);
