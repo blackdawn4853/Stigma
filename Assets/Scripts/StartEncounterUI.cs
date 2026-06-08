@@ -77,15 +77,8 @@ public class StartEncounterUI : MonoBehaviour
     IEnumerator IntroSequence()
     {
         state = State.Intro;
-        group.alpha = 0f;
-        float t = 0f, dur = 0.5f;
-        while (t < dur)
-        {
-            t += Time.unscaledDeltaTime;
-            group.alpha = Mathf.Lerp(0f, 1f, t / dur);
-            yield return null;
-        }
-        group.alpha = 1f;
+        group.alpha = 1f;   // 즉시 불투명 — 뒤의 노드맵이 잠깐도 안 보이게 첫 프레임부터 덮음
+        yield return null;  // 캔버스 1프레임 안정화 후 대사 시작
         lineIndex = 0;
         state = State.Dialogue;
         ShowLine(def.lines[0]);
@@ -128,18 +121,25 @@ public class StartEncounterUI : MonoBehaviour
         namePlateRT.anchoredPosition = new Vector2(god ? -620f : 620f, 130f);
 
         bodyText.color = god ? godBodyColor : playerBodyColor;
+        // 어절(공백 단위)을 <nobr>로 묶어 단어 중간에서 줄바꿈되는 문제 방지 ("크툴루"→"크툴"/"루")
+        bodyText.richText = true;
+        bodyText.text = WrapNoBreak(line.text);
+        bodyText.maxVisibleCharacters = 0;
         if (typeCo != null) StopCoroutine(typeCo);
-        typeCo = StartCoroutine(TypeLine(line.text));
+        typeCo = StartCoroutine(TypeLine());
     }
 
-    IEnumerator TypeLine(string s)
+    // 리치텍스트 태그가 한 글자씩 노출되며 깨지지 않도록 maxVisibleCharacters 로 타자기 구현
+    IEnumerator TypeLine()
     {
         typing = true;
         hintText.text = "";
-        bodyText.text = "";
-        for (int i = 0; i <= s.Length; i++)
+        bodyText.maxVisibleCharacters = 0;
+        bodyText.ForceMeshUpdate();
+        int total = bodyText.textInfo.characterCount;
+        for (int i = 0; i <= total; i++)
         {
-            bodyText.text = s.Substring(0, i);
+            bodyText.maxVisibleCharacters = i;
             yield return new WaitForSecondsRealtime(0.055f);
         }
         typing = false;
@@ -149,9 +149,29 @@ public class StartEncounterUI : MonoBehaviour
     void CompleteLine()
     {
         if (typeCo != null) StopCoroutine(typeCo);
-        bodyText.text = def.lines[lineIndex].text;
+        bodyText.ForceMeshUpdate();
+        bodyText.maxVisibleCharacters = bodyText.textInfo.characterCount;
         typing = false;
         hintText.text = "( 화면 클릭 )";
+    }
+
+    // 어절 단위로 <nobr> 묶기 — 공백에서만 줄바꿈, 단어 내부는 안 끊김
+    string WrapNoBreak(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return s;
+        var parts = s.Split(' ');
+        for (int i = 0; i < parts.Length; i++)
+            if (parts[i].Length > 0) parts[i] = "<nobr>" + parts[i] + "</nobr>";
+        return string.Join(" ", parts);
+    }
+
+    // TMP 아웃라인(인스턴스 머티리얼 → 다른 텍스트에 영향 없음)
+    void ApplyOutline(TMP_Text t, float width, Color outline)
+    {
+        if (t == null) return;
+        var mat = t.fontMaterial;
+        mat.SetColor(ShaderUtilities.ID_OutlineColor, outline);
+        mat.SetFloat(ShaderUtilities.ID_OutlineWidth, width);
     }
 
     void NextLine()
@@ -240,17 +260,29 @@ public class StartEncounterUI : MonoBehaviour
         BuildIllustration();
 
         // 외신 이름 (상단, 일러스트 위) + 그 아래 상호명(별칭)
-        godTitle = NewText(transform, def.godName, 62, FontStyles.Bold,
-                           new Color(def.godColor.r, def.godColor.g, def.godColor.b, 0.95f),
-                           new Vector2(0f, 452f), new Vector2(1600f, 100f));
+        // 이름 배너 (상단 중앙 가는 띠) — 어두운 박스로 가독성 확보, 후광/얼굴은 안 가림
+        var banner = NewImage(transform, "NameBanner", new Color(0.05f, 0.04f, 0.06f, 0.9f));
+        var brt = banner.rectTransform;
+        brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 1f);
+        brt.anchoredPosition = new Vector2(0f, -20f);
+        brt.sizeDelta = new Vector2(920f, 150f);
+        banner.raycastTarget = false;
+        Border(brt, new Color(def.godColor.r * 0.78f, def.godColor.g * 0.6f, def.godColor.b * 0.34f, 0.85f));
 
-        // 상호명 — 이름보다 작게 + 명조 이탤릭 + 자간 띄움 + 무드 색(이름색을 밝게 풀어 차별화)
-        var epithet = NewText(transform, "— " + def.godEpithet + " —", 30, FontStyles.Italic,
-                              new Color(Mathf.Lerp(def.godColor.r, 1f, 0.5f),
-                                        Mathf.Lerp(def.godColor.g, 1f, 0.5f),
-                                        Mathf.Lerp(def.godColor.b, 1f, 0.5f), 0.82f),
-                              new Vector2(0f, 398f), new Vector2(1600f, 56f));
+        // 이름 (배너 상단)
+        godTitle = NewText(brt, def.godName, 70, FontStyles.Bold,
+                           new Color(def.godColor.r, def.godColor.g, def.godColor.b, 1f),
+                           new Vector2(0f, 24f), new Vector2(880f, 84f));
+        ApplyOutline(godTitle, 0.2f, Color.black); // 검정 테두리 + 금색 안쪽
+
+        // 상호명 (배너 하단) — 명조 이탤릭 + 자간
+        var epithet = NewText(brt, "— " + def.godEpithet + " —", 32, FontStyles.Italic,
+                              new Color(Mathf.Lerp(def.godColor.r, 1f, 0.6f),
+                                        Mathf.Lerp(def.godColor.g, 1f, 0.6f),
+                                        Mathf.Lerp(def.godColor.b, 1f, 0.6f), 1f),
+                              new Vector2(0f, -42f), new Vector2(880f, 46f));
         epithet.characterSpacing = 10f;
+        ApplyOutline(epithet, 0.16f, Color.black);
 
         // 다이얼로그 박스 (하단)
         BuildDialogueBox();
@@ -306,19 +338,19 @@ public class StartEncounterUI : MonoBehaviour
         var rt = box.rectTransform;
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.anchoredPosition = new Vector2(0f, -350f);
-        rt.sizeDelta = new Vector2(1660f, 280f);
+        rt.sizeDelta = new Vector2(1660f, 300f);
         Border(rt, new Color(0.34f, 0.30f, 0.36f, 0.8f));
 
-        // 본문 (박스 안쪽, 좌측 정렬, 자동 줄바꿈)
+        // 본문 (박스 안쪽, 좌측 정렬, 자동 줄바꿈) — 시작점을 명패 아래로 내려 간격 확보
         bodyText = NewText(rt, "", 38, FontStyles.Normal, godBodyColor,
-                           new Vector2(0f, -18f), new Vector2(1540f, 170f));
+                           new Vector2(0f, -34f), new Vector2(1560f, 196f));
         bodyText.alignment = TextAlignmentOptions.TopLeft;
         bodyText.enableWordWrapping = true;
         bodyText.overflowMode = TextOverflowModes.Overflow;
 
-        // 클릭 힌트 (우하단)
+        // 클릭 힌트 (우하단) — 박스 안쪽으로 (이전엔 우측으로 삐져나감)
         hintText = NewText(rt, "", 24, FontStyles.Italic,
-                           new Color(0.62f, 0.59f, 0.64f, 0.85f), new Vector2(710f, -112f), new Vector2(280f, 40f));
+                           new Color(0.62f, 0.59f, 0.64f, 0.85f), new Vector2(646f, -118f), new Vector2(300f, 36f));
         hintText.alignment = TextAlignmentOptions.Right;
 
         // 화자 명패 — 박스 자식이라 박스 숨길 때 같이 사라짐.
@@ -351,15 +383,19 @@ public class StartEncounterUI : MonoBehaviour
             rt.anchoredPosition = new Vector2(0f, ys[i]);
             rt.sizeDelta = new Vector2(1340f, 110f);
 
+            // 선택지 톤을 외신색 기반으로 — 니알라토텝이면 금빛
+            Color g = def.godColor;
             var img = go.GetComponent<Image>();
-            img.color = new Color(0.10f, 0.08f, 0.12f, 0.96f);
-            Border(rt, new Color(0.40f, 0.34f, 0.42f, 0.85f));
+            img.color = new Color(g.r * 0.14f, g.g * 0.11f, g.b * 0.09f, 0.96f); // 외신색 깔린 near-black
+            Border(rt, new Color(g.r * 0.78f, g.g * 0.62f, g.b * 0.42f, 0.9f));   // 외신색 테두리
 
             var btn = go.GetComponent<Button>();
             btn.onClick.AddListener(() => OnChoice(captured));
+            var hov = go.AddComponent<HoverScale>(); hov.hoverScale = 1.018f;
 
             var label = NewText(rt, def.choices[i], 32, FontStyles.Normal,
-                                new Color(0.92f, 0.88f, 0.90f, 1f), Vector2.zero, new Vector2(1280f, 100f));
+                                new Color(Mathf.Lerp(g.r, 1f, 0.72f), Mathf.Lerp(g.g, 1f, 0.68f), Mathf.Lerp(g.b, 1f, 0.62f), 1f),
+                                Vector2.zero, new Vector2(1280f, 100f));
             label.alignment = TextAlignmentOptions.Center;
 
             go.GetComponent<CanvasGroup>().alpha = 0f;
@@ -389,7 +425,8 @@ public class StartEncounterUI : MonoBehaviour
         {
             godName = "니알라토텝",
             godEpithet = "기어다니는 혼돈",
-            godColor = new Color(0.72f, 0.34f, 0.86f, 1f),
+            godColor = new Color(0.86f, 0.62f, 0.26f, 1f), // 일러스트의 금빛 후광 톤
+            illustration = Resources.Load<Sprite>("Encounters/Nyarlathotep"),
             choices = new[] { "선택지 1", "선택지 2", "선택지 3" }
         };
         d.lines = new List<Line>
