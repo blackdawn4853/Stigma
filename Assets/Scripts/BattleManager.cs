@@ -115,6 +115,7 @@ public class BattleManager : MonoBehaviour
         BottomHudBar.EnsureForBattle();
         PlayerHpBarUI.EnsureForBattle();
         MouseCameraController.EnsureForBattle();
+        BattleAtmosphere.EnsureForBattle();   // 음산한 배경 톤 + 비네트/암전/불티 (아트 불필요)
 
         // 플레이어에 ParallaxLayer 부착 (인트로 동안 비활성, 끝난 후 활성화됨)
         if (playerObject != null) AttachCharacterParallax(playerObject);

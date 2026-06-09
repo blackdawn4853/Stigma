@@ -11,6 +11,80 @@
 
 ---
 
+## 2026-06-09 — [데탑] 전투 업그레이드 P1 — 배경 분위기 (아트 0개)
+
+`BattleAtmosphere.cs` 신규 + `BattleManager.Awake` 부트스트랩 1줄. 컴파일 에러 없음. MCP로 플레이 캡처 검증 완료(흰 하늘→음산 청보랏빛).
+- **발견**: 전투씬 흰 하늘 정체 = **카메라 `clearFlags=Skybox`**(스프라이트 아님). URP가 아니라 **Built-in 파이프라인으로 보고됨**(Volume/포스트프로세싱 없음) → 렌더 파이프라인 무관 절차 방식 채택.
+- **카메라 클리어 어둡게**(`overrideCameraClear`, skyColor): 스카이박스→솔리드 → 흰 하늘 즉시 제거(가장 큰 변화).
+- **배경 틴트**: "Background" 하위 SpriteRenderer 6종을 어둡고 차갑게(절대색 지정, 멱등). 캐릭터 제외.
+  - **함정**: 배경 오브젝트 Awake 가 색을 흰색으로 덮어써서, Awake 1회 적용은 안 남음 → **즉시 + 1프레임 뒤** 2회 적용으로 해결.
+- **오버레이 캔버스**(sortingOrder -200, 월드 위/UI 아래): 비네트 + 상단 암전 그라데이션 + 보랏빛 색 워시 + 떠오르는 불티. **단 ScreenSpaceOverlay 는 카메라 경로 스샷에 안 잡힘** → 오버레이 효과는 실제 플레이에서만 보임(스샷 검증 불가).
+- 전부 인스펙터 값 노출(tint/skyColor/vignette/topDarken/colorWash/emberCount).
+- **MCP 학습**: `manage_camera screenshot game_view`는 카메라 렌더만 캡처 → ScreenSpaceOverlay UI 미포함. 직접 BattleScene 플레이는 GameManager/NextEncounter 부트스트랩이 없어 몬스터·카드·HUD 미생성(트랩 #7).
+
+## 2026-06-09 — [데탑] 전투 업그레이드 Stage 1 — 드래그 화살표 + 타겟 하이라이트
+
+`DragArrow.cs` 강화. 컴파일 에러 없음. (Stage 2 = 타격감 패스 예정)
+- **화살표 굵게/연출**: 폭 0.1→0.22, 끝으로 갈수록 옅어지는 그라데이션(머리 진함), 둥근 끝(numCap/CornerVertices), **흐르는 점선**(절차 dash 텍스처 + 길이비례 타일 + offset 스크롤), curveRes 28.
+  - **⚠ 직렬화 함정**: 기존 `lineWidth`가 씬에 0.1로 직렬화돼 코드 기본값을 바꿔도 무시됨 → **새 필드 `arrowWidth`로 교체**해 코드 기본값(0.22) 적용되게 함. (신규 필드 `validColor`/`flowSpeed`/`dashWorldSize`도 직렬값 없어 코드 기본 적용)
+- **유효 타겟 위 색 전환**: 화살표가 살아있는 몬스터를 가리키면 빨강→**금빛**.
+- **타겟 하이라이트**(`MonsterTargetHighlight`): 가리키는 몬스터 뒤에 **금빛 실루엣 글로우(맥동)** — 본체 스프라이트 복제·flipX 동기화, sortingOrder 본체-1(뒤). 본체 색/스케일은 안 건드림(피격 플린치 충돌 방지). 드래그 중 실시간 토글, `HideArrow`에서 해제.
+
+## 2026-06-09 — [데탑] 상점 Phase 2 — 돈 없을 때 상인 말풍선 대사
+
+- **상인 말풍선**(`BuildMerchantBubble`): 왼쪽 상인 곁(-470,255)에 금빛 명패 톤 말풍선(둥근 패널+금테+꼬리). 평소 알파0, 클릭 시 표시. `ShowMerchantLine`/`BubbleRoutine`(등장 펀치 → 2.6초 유지 → 페이드). 직전과 같은 대사 회피.
+- **돈 없을 때 트리거**: `NoGoldLines` 8종(랜덤) + 체력가득 시 `FullHpLine`. `OnBuy`에서 `Gold<price`면 구매 대신 `ShowMerchantTaunt`. `OnPotion`은 체력가득→FullHpLine, 골드부족→Taunt.
+- **클릭 가능하게 변경**: 못 사는 카드/포션이 기존엔 `interactable=false`라 클릭 무반응 → **카드 버튼 항상 interactable, 포션은 `!potionUsed`면 클릭 허용**(회색/빨강 시각은 유지). 그래야 클릭 시 상인 대사가 뜸.
+- 컴파일 에러 없음.
+
+## 2026-06-09 — [데탑] 상점 위로 드로잉 버튼 바 뚫고 나오던 것 수정
+
+- **원인**: `MapDrawingUI` 캔버스 `sortingOrder 1100` > 상점 900 → 상점 위로 표시. (상점을 1100 위로 올리면 HUD 1000도 가려져 골드 사라짐)
+- **해결**: 상점 진입 시 `MapDrawingUI` 자식 캔버스(`MapDrawingUICanvas`)만 `SetActive(false)`, `CloseRoutine`에서 복구. 같은 GO 의 `MapDrawingManager`(데이터/입력)는 유지. `FindFirstObjectByType` 사용.
+- **상점 패널을 상단 HUD 아래로**: 패널을 중앙 앵커 → **상단 앵커(pivot 0.5,1)**로 변경, `anchoredPosition (385,-74)`(화면 top − HUD높이64 − 간격10), height 1010→976. 자식들은 패널 중앙 기준이라 그대로 따라 내려감. (HUD `hudHeight=64`, `hudTopOffset=0` 기준)
+
+## 2026-06-09 — [데탑] 상점 Phase 2 일부 — 상인 일러스트 배치 + 레이아웃 우측 재배치
+
+- **상인 일러스트 추가**: `OneDrive/.../스티그마 에셋/상점상인.png` → **`Assets/Resources/Shop/Merchant.png`** (Sprite, 1456×816). 다키스트던전풍 후드 상인.
+- **`BuildMerchant`**: 와이드 원본에서 **상인만 크롭**(`Sprite.Create` 서브렉트, `merchantCrop` 정규화값 — **추정치라 나중 미세조정 필요**) 후 **왼쪽**에 배치(`merchantPos`/`merchantHeight` 필드). 미세 호흡 코루틴(`MerchantBreathe`). 일러 배경이 순수 검정이라 왼쪽을 어둡게 유지해 자연 블렌딩.
+- **레이아웃 우측 재배치**: 중앙 글로우를 오른쪽(x=385)으로 이동. **제단 패널을 풀스크린→우측(x=385, 1140×1010)**. 카드 배율 1.45→**1.12**(좁아진 패널에 5장 맞춤), cardRow 1100×420·간격 20. 제목 46pt. 리롤/돌아가기 360×88. **포션 컨테이너 0.72배 축소**(호버 캡처 전 localScale 설정).
+- 컴파일 에러 없음. (상인 위치/크롭, 카드·포션 크기는 사용자 확인 후 조정 예정)
+
+## 2026-06-09 — [데탑] 상점 업그레이드 "외신 상인의 제단" Phase 1 (분위기+토대)
+
+전부 절차생성. `ShopUI.cs`. 컴파일 에러 없음. (Phase 2=상인 NPC/대사, Phase 3=연출 예정)
+- **분위기**(`BuildAtmosphere`): 단색 딤 → 보랏빛 거의-검정 딤 + **중앙 핏빛/보랏 글로우(맥동 BreatheGlow)** + **비네트** + **그레인(타일 노이즈 α0.028)** + **떠오르는 불티 12개**(`BuildEmbers`/`EmberLoop`, 최상단·클릭 비차단, 떠오르며 밝아졌다 사라짐).
+- **제단 패널**(`StyleAltar`): 어두운 석재 톤 + 이중 테두리 + **네 모서리 룬(마름모 겹친 인장)**. 제목 "✦ 외신 상인의 제단 ✦".
+- **카드 뒤 등급 글로우**: 등급색 방사 글로우, 희귀할수록 강하게(Common 0.16 → Mythic 0.6). 전설+ 는 맥동(PulseGlow).
+- 절차 스프라이트 3종 추가: `MakeRadialSprite`/`MakeVignetteSprite`/`MakeGrainSprite` (static 캐시).
+- **헤더 큰 골드 표시는 사용자 요청으로 제외** — 골드는 상단 HUD로만.
+
+## 2026-06-09 — [데탑] 상점 카드 = 전투 카드 프리팹 그대로 사용 (절차생성 폐기)
+
+직전 절차생성 카드(일러스트 찌그러짐·cost박스/아이콘 이상·우상단 군더더기 박스)가 별로여서 **전투용 `CardPrefab`을 그대로 인스턴스화**하는 방식으로 전환(리워드 씬과 동일 패턴).
+- **프리팹 이동**: `Assets/Prefabs/CardPrefab.prefab` → **`Assets/Resources/CardPrefab.prefab`** (런타임/빌드에서 `Resources.Load`로 불러오려면 Resources 아래 필수). GUID 보존되어 리워드 씬 인스펙터 참조는 그대로 동작. (구 위치 `.bak`은 사용자 백업이라 그대로 둠)
+- **`ShopUI.cs`**: `BuildCardVisual`/`TypeBadge`(절차생성) **삭제**. `BuildOffer`가 `Instantiate(cardPrefab)` → `CardUI.Setup(card)` → 루트 Button 리스너를 구매로 교체. 카드 표시 배율 `CardScale=1.45`(원본 180×240). 스케일은 레이아웃에 안 잡히므로 Offer 컨테이너 `LayoutElement` 크기를 스케일 후 크기로 잡아 간격 확보. 회색처리용 CanvasGroup 런타임 부착. 호버는 프리팹 CardUI 자체(compactHoverScale)가 처리.
+- **`CardUI.cs`**: `OnBeginDrag`에 `if (BattleManager.Instance == null) return;` 가드 추가 → 전투가 아닌 상점/리워드에서 타겟 카드 드래그 시 NRE 방지.
+- 컴파일 에러 없음.
+
+## 2026-06-09 — [데탑] 상점 카드 비주얼 보강 · 호버 · 군더더기 텍스트 제거
+
+`ShopUI.cs` 수정. 컴파일 에러 없음.
+- **카드/포션 마우스 호버 확대**: `ShopHoverGrow`(IPointerEnter/Exit, unscaled lerp, ~1.1배) 신규 컴포넌트를 카드 루트·포션에 부착.
+- **카드 비주얼 재구성**: 기존엔 일러스트만 보였음 — **설명 텍스트가 하단 앵커+top 피벗이라 카드 밖으로 빠져 잘려 있던 버그** 발견·수정. 이제 등급색 프레임 + 어두운 바탕 + **이름 밴드(상단 띠, 오토사이즈)** + 일러스트 + **cost 박스(좌상단 둥근 파란 배지+테두리)** + **타입 아이콘 배지(우상단, 종류별 색+글자 공/술/금/력 — `TypeBadge`)** + **설명 패널(하단, 오토사이즈 래핑)**. 둥근 모서리는 빌트인 `UISprite` 슬라이스.
+- **군더더기 텍스트 제거**: "골드는 상단에 표시됩니다", "─ 체력 회복(상점당 1회) ─" 둘 다 삭제. **포션 1회 제한 자체는 유지**(텍스트만 제거).
+- BuyPulse(구매 펄스)는 호버 스케일과 충돌해 제거.
+
+## 2026-06-09 — [데탑] 상점 개선 (창 확대 · 반복구매 · 포션 모양)
+
+`ShopUI.cs` 수정. 컴파일 에러 없음.
+- **상점 창 화면 거의 꽉 채움**: 패널 `1560×780` → `1840×1010`, 중앙으로(-40→-8). 제목 46→58pt. 카드 줄/포션/버튼 레이아웃을 패널 중앙 앵커 기준으로 전면 재배치. 카드도 키움(210×330→250×410, 비주얼 240×336).
+- **돈 되는 만큼 반복 구매**: 기존 "한 번 사면 SOLD로 잠김"(`o.sold`/`soldOverlay`) **완전 삭제**. 이제 골드만 충분하면 같은 카드도 계속 구매 가능(못 살 때만 회색+가격 빨강). 구매 시 카드 살짝 펄스(`BuyPulse`).
+- **카드 5종 아래 포션 모양 체력회복**: 네모 텍스트 버튼 → **코드로 그린 포션 병**(코르크+병목+둥근 유리 몸통+빨간 액체+유리 광택+❤마크, 둥근 모서리는 빌트인 `UISprite` 슬라이스). 카드 줄 아래 중앙. **상점당 1회만**(`potionUsed` 유지), 가격 35→**85**(조금 비싸게)·회복 25→30. 사용 후/체력가득/골드부족 시 흐려짐.
+- 리롤·돌아가기는 하단 한 줄로.
+
+---
+
 ## 2026-06-08 — [데탑] 노드맵 꾸미기 + HUD 리뉴얼 + 상점 신규 구현
 
 - **노드맵 배경**: 회색(카메라) → ScrollRect 배경 이미지를 **플랫 단색(머스터드 노란, 인스펙터 `mapBackgroundColor` 노출)**으로 교체. (그라데이션·비네트는 시도했다 "어둑/구분안됨" 피드백으로 단색 확정. ScrollRect 반투명 흰 배경이 회색 워시 원인이었음)

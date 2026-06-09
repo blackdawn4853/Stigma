@@ -221,6 +221,8 @@ public class CardUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, 
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (cardData == null || !cardData.requiresTarget) return;
+        // 전투가 아닌 곳(상점/리워드)에서는 드래그 비활성 — BattleManager 가 없어 NRE 방지.
+        if (BattleManager.Instance == null) return;
 
         isDragging = true;
         isArrowMode = false;
