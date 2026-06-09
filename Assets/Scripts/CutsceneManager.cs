@@ -38,6 +38,9 @@ public class CutsceneManager : MonoBehaviour
     private Image redPulse;          // 붉은 시선 펄스 (검은 태양 분위기)
     private RectTransform letterTop, letterBottom;
 
+    // 폭풍 (검은 태양 공개 시점부터 ON — 지지직 그레인 강화 + 주기 번개)
+    private bool weatherActive;
+
     private float redBaseAlpha = 0.06f;   // 평상시 은은한 붉은 기운
     private float redCurrentExtra = 0f;   // 시선 스파이크로 추가되는 붉은 강도
 
@@ -45,7 +48,7 @@ public class CutsceneManager : MonoBehaviour
     private float shakeAmount = 0f;
     private Vector2 shakeOffset = Vector2.zero;
 
-    private enum Beat { None, Lightning, RedSpike, Finale }
+    private enum Beat { None, Lightning, RedSpike, Finale, RevealStorm }
 
     private struct Shot
     {
@@ -55,12 +58,13 @@ public class CutsceneManager : MonoBehaviour
         public float moveDuration; // 이전 샷에서 이 샷으로 이동하는 시간
         public float hold;        // 타이핑 끝난 뒤 머무는 시간
         public Beat beat;
-        public int image;         // 1 = cutsceneImage, 2 = cutsceneImage2 (다른 이미지로 바뀌면 플래시 컷)
+        public int image;         // 1 = cutsceneImage, 2 = cutsceneImage2 (다른 이미지로 바뀌면 디졸브)
+        public bool blink;        // 같은 이미지 내에서 무빙 대신 "깜빡(암전 블링크)"으로 컷 이동
 
-        public Shot(string n, Vector2 f, float s, float m, float h, Beat b, int img)
+        public Shot(string n, Vector2 f, float s, float m, float h, Beat b, int img, bool bl = false)
         {
             narration = n; focus = f; scale = s;
-            moveDuration = m; hold = h; beat = b; image = img;
+            moveDuration = m; hold = h; beat = b; image = img; blink = bl;
         }
     }
 
@@ -72,37 +76,33 @@ public class CutsceneManager : MonoBehaviour
     void Start()
     {
         // 동선: [이미지1] 와이드→인물→검은태양→눈→성채  ⇒ 플래시 컷 ⇒  [이미지2] 인물→물웅덩이→비친 자아(피날레)
+        // 카메라 무빙 최소화: 큰 줌/팬 제거 → 거의 전체 프레임을 유지한 채 아주 미세한 푸시·팬만.
+        // (이전엔 2.0~2.4배 줌 + 큰 포커스 점프라 "짜쳤음")
         shots = new Shot[]
         {
-            // ===== 이미지1 — 검은 태양 세계관 =====
-            // ① 와이드 — 죽은 세계 전경 (느린 푸시 인)
-            new Shot("세계는 이미 끝나 있었다.",
-                new Vector2(0f, 0f), 1.08f, 0f, 1.8f, Beat.None, 1),
+            // ===== 이미지1 =====
+            // 왕국(눈 아래 = 중앙~우측의 도시) 클로즈업 — 비 X, 번개 X — 1·2번
+            // 캐릭터는 왼쪽 전경이라 오른쪽으로 잡아 제외, 눈은 위로 빼서 3번 전까지 숨김.
+            new Shot("한때, 이 땅은 찬란했다.",
+                new Vector2(0.22f, -0.08f), 2.0f, 0f, 1.8f, Beat.None, 1),
+            new Shot("왕국과 신앙이, 영원을 노래했다.",
+                new Vector2(0.22f, -0.08f), 2.0f, 0f, 1.8f, Beat.None, 1),
 
-            // ② 후드 인물(좌하단) 클로즈업
-            new Shot("잿더미가 된 땅 위에, 단 하나의 그림자가 서 있었다.",
-                new Vector2(-0.16f, -0.06f), 2.0f, 3.8f, 1.8f, Beat.None, 1),
+            // 검은 태양 — 번개 번쩍하며 전체 일러스트로 확 빠짐 + 비/주기번개 시작 — 3번
+            new Shot("허나 하늘이 갈라지고, 검은 태양이 눈을 뜨니,",
+                new Vector2(0f, 0f), 1.0f, 0f, 2.0f, Beat.RevealStorm, 1),
 
-            // ③ 검은 태양(우상단)으로 상승
-            new Shot("신을 삼킨 검은 태양이, 하늘을 갈랐다.",
-                new Vector2(0.16f, 0.20f), 1.9f, 4.0f, 1.6f, Beat.Lightning, 1),
+            // 전체 일러 유지 (비 + 주기 번개) — 4·5·6번
+            new Shot("그 무엇도 남지 않았다.",
+                new Vector2(0f, 0f), 1.0f, 0f, 1.8f, Beat.None, 1),
+            new Shot("오직 낙인자들의 영혼만이 떠돌 뿐이다.",
+                new Vector2(0f, 0f), 1.0f, 0f, 2.0f, Beat.None, 1),
+            new Shot("낙인을 지고,",
+                new Vector2(0f, 0f), 1.0f, 0f, 1.2f, Beat.None, 1),
 
-            // ④ 태양의 핵 = 「눈」 클로즈업 — 응시
-            new Shot("그것은 눈을 뜨고, 세상을 응시하기 시작했다.",
-                new Vector2(0.15f, 0.18f), 2.4f, 3.2f, 2.0f, Beat.RedSpike, 1),
-
-            // ⑤ 무너진 성채(우하단)로 하강
-            new Shot("왕도, 신앙도, 빛도 — 모두 그 시선 아래 스러졌다.",
-                new Vector2(0.19f, -0.13f), 1.9f, 3.8f, 1.8f, Beat.None, 1),
-
-            // ===== 이미지2 — 주인공 + 물에 비친 자아 (플래시 컷으로 진입) =====
-            // 2-A 초기 구도 (인물, 우하단 촉수팔은 프레임 밖) — 나레이션
-            new Shot("그리고 낙인을 짊어진 자가, 그 응시에 맞선다.",
-                new Vector2(0.12f, 0.20f), 1.7f, 0f, 1.0f, Beat.None, 2),
-
-            // 2-B 물에 비친 후드로 천천히 무빙(클로즈업 없이 같은 줌으로 팬) → 3초 정지 → (번쩍 없이) 맵으로
-            new Shot("",
-                new Vector2(-0.06f, -0.06f), 1.7f, 3.8f, 3.0f, Beat.None, 2),
+            // ===== 이미지2 — 물에 비친 자아 (암전 디졸브) — 7번 =====
+            new Shot("삶과 죽음을 영원히 반복하리……",
+                new Vector2(-0.03f, -0.03f), 1.06f, 0f, 3.0f, Beat.None, 2),
         };
 
         canvasRT = cutsceneImage != null ? cutsceneImage.transform.parent as RectTransform : null;
@@ -138,6 +138,7 @@ public class CutsceneManager : MonoBehaviour
             float oy = Mathf.Repeat(Time.time * 5.1f, 1f);
             grain.uvRect = new Rect(ox, oy, grain.uvRect.width, grain.uvRect.height);
         }
+
 
         // 카메라 셰이크 감쇠
         if (shakeAmount > 0f)
@@ -179,8 +180,19 @@ public class CutsceneManager : MonoBehaviour
 
     void ApplyTransform(RectTransform img, Vector2 basePos, float scale)
     {
-        img.anchoredPosition = basePos + shakeOffset;
+        // 이미지가 항상 화면을 덮도록 위치 클램프 → 무빙 시 가장자리 공백 방지.
+        // (이미지 크기*scale 가 화면보다 큰 만큼만 이동 허용)
+        img.anchoredPosition = ClampToCover(img, basePos, scale) + shakeOffset;
         img.localScale = Vector3.one * scale;
+    }
+
+    Vector2 ClampToCover(RectTransform img, Vector2 pos, float scale)
+    {
+        if (canvasRT == null) return pos;
+        const float margin = 8f; // 셰이크/서브픽셀 여유
+        float maxX = Mathf.Max(0f, (img.rect.width  * scale - canvasRT.rect.width ) * 0.5f - margin);
+        float maxY = Mathf.Max(0f, (img.rect.height * scale - canvasRT.rect.height) * 0.5f - margin);
+        return new Vector2(Mathf.Clamp(pos.x, -maxX, maxX), Mathf.Clamp(pos.y, -maxY, maxY));
     }
 
     void SetImageAlpha(RectTransform img, float a)
@@ -210,42 +222,46 @@ public class CutsceneManager : MonoBehaviour
             Shot shot = shots[i];
             RectTransform shotImg = (shot.image == 2 && cutsceneImage2 != null) ? cutsceneImage2 : cutsceneImage;
 
-            // 1) 이동 또는 이미지 전환
+            // 1) 전환 (전부 정적 — 드리프트/줌 무빙 없음. 깜빡 컷 or 암전 디졸브)
             if (shotImg != curImg)
             {
-                // ---- 다른 이미지로 전환: 플래시(번쩍) 컷 ----
-                // 새 이미지를 시작 위치/배율로 미리 세팅 → 번쩍 절정에서 드러냄
+                // ---- 다른 이미지로 전환: 암전 디졸브(페이드) ----
                 ApplyTransform(shotImg, FocusToPos(shotImg, shot.focus, shot.scale), shot.scale);
-                yield return StartCoroutine(FlashCut(curImg, shotImg));
+                yield return StartCoroutine(DarkDip(curImg, shotImg));
                 curImg = shotImg;
             }
-            else if (shot.moveDuration > 0f)
+            else if (shot.beat == Beat.RevealStorm)
             {
-                yield return StartCoroutine(MoveTo(curImg, shot.focus, shot.scale, shot.moveDuration));
+                // ---- 번개 번쩍하며 전체 일러스트로 컷 + 비/주기번개 시작 ----
+                yield return StartCoroutine(LightningReveal(curImg, shot.focus, shot.scale));
+                StartWeather();
+            }
+            else if (shot.blink)
+            {
+                // ---- 같은 이미지 내 깜빡(암전 블링크)으로 구도 점프 ----
+                yield return StartCoroutine(BlinkCut(curImg, shot.focus, shot.scale));
             }
             else
             {
+                // 같은 구도(다음 대사) — 즉시 적용, 움직임 없음
                 ApplyTransform(curImg, FocusToPos(curImg, shot.focus, shot.scale), shot.scale);
             }
 
-            // 2) 도착 후 한 박자 멈춤
-            yield return WaitWithLife(0.35f);
+            // 2) 한 박자 멈춤
+            yield return WaitWithLife(0.3f);
 
             // 3) 연출 비트
             switch (shot.beat)
             {
                 case Beat.Lightning: StartCoroutine(LightningFlash()); break;
-                case Beat.RedSpike:  redCurrentExtra = 0.45f; shakeAmount = 6f; break;
+                case Beat.RedSpike:  redCurrentExtra = 0.4f; shakeAmount = 2.5f; break;
                 case Beat.Finale:    /* 타이핑 후 처리 */ break;
             }
 
-            // 4) 타이핑 + 머무름 — 그 동안 천천히 줌인 드리프트로 화면이 숨 쉬게
-            float driftScale = shot.scale * 1.05f;
-            float lifeTime = shot.narration.Length * typingSpeed + shot.hold + 0.6f;
-            StartCoroutine(Drift(curImg, shot.focus, shot.scale, driftScale, lifeTime));
-
-            yield return StartCoroutine(TypeText(shot.narration));
-            yield return WaitWithLife(shot.hold); // 드리프트는 별도 코루틴이 처리
+            // 4) 나레이션 페이드 인(DD 톤) + 머무름 (정적)
+            float reading = Mathf.Min(3.5f, shot.narration.Length * 0.085f);
+            yield return StartCoroutine(RevealText(shot.narration));
+            yield return WaitWithLife(reading + shot.hold);
 
             // 5) 피날레: 화이트→레드 플래시 후 암전 전환
             if (shot.beat == Beat.Finale)
@@ -327,23 +343,126 @@ public class CutsceneManager : MonoBehaviour
         // 절정 — 이미지 스왑 + 살짝 셰이크
         SetImageAlpha(from, 0f);
         SetImageAlpha(to, 1f);
-        shakeAmount = 5f;
+        shakeAmount = 2f;
 
         e = 0f;
         while (e < outTime) { e += Time.deltaTime; flash.color = new Color(col.r, col.g, col.b, Mathf.Lerp(maxAlpha, 0f, e / outTime)); yield return null; }
         Destroy(flashObj);
     }
 
+    /// <summary>웅덩이로 가라앉았다 떠오르듯 — 암전으로 덮은 뒤 이미지 교체(흰 플래시 X, 다크소울 톤).</summary>
+    IEnumerator DarkDip(RectTransform from, RectTransform to)
+    {
+        GameObject dipObj = new GameObject("DarkDip");
+        dipObj.transform.SetParent(canvasRT, false);
+        Image dip = dipObj.AddComponent<Image>();
+        Stretch(dip.rectTransform);
+        dip.transform.SetAsLastSibling();
+        dip.raycastTarget = false;
+
+        Color col = new Color(0.02f, 0.02f, 0.035f);
+        float inTime = 0.55f, hold = 0.12f, outTime = 0.8f;
+
+        float e = 0f;
+        while (e < inTime) { e += Time.deltaTime; dip.color = new Color(col.r, col.g, col.b, Mathf.SmoothStep(0f, 1f, e / inTime)); yield return null; }
+        dip.color = new Color(col.r, col.g, col.b, 1f);
+
+        // 암전 절정에서 이미지 교체
+        SetImageAlpha(from, 0f);
+        SetImageAlpha(to, 1f);
+        yield return new WaitForSeconds(hold);
+
+        e = 0f;
+        while (e < outTime) { e += Time.deltaTime; dip.color = new Color(col.r, col.g, col.b, Mathf.SmoothStep(1f, 0f, e / outTime)); yield return null; }
+        Destroy(dipObj);
+    }
+
+    /// <summary>같은 이미지 내에서 "눈 깜빡"처럼 빠른 암전으로 구도를 즉시 점프(무빙 X).</summary>
+    IEnumerator BlinkCut(RectTransform img, Vector2 focus, float scale)
+    {
+        GameObject bObj = new GameObject("Blink");
+        bObj.transform.SetParent(canvasRT, false);
+        Image bi = bObj.AddComponent<Image>();
+        Stretch(bi.rectTransform);
+        bi.transform.SetAsLastSibling();
+        bi.raycastTarget = false;
+        Color col = new Color(0.01f, 0.01f, 0.02f);
+
+        float inT = 0.12f, outT = 0.16f;
+        float e = 0f;
+        while (e < inT) { e += Time.deltaTime; bi.color = new Color(col.r, col.g, col.b, Mathf.Clamp01(e / inT)); yield return null; }
+        bi.color = new Color(col.r, col.g, col.b, 1f);
+
+        // 암전 절정에서 카메라 즉시 이동 (무빙 없이 컷)
+        ApplyTransform(img, FocusToPos(img, focus, scale), scale);
+        yield return null;
+
+        e = 0f;
+        while (e < outT) { e += Time.deltaTime; bi.color = new Color(col.r, col.g, col.b, 1f - Mathf.Clamp01(e / outT)); yield return null; }
+        Destroy(bObj);
+    }
+
+    // ── 날씨: 비 + 주기 번개 (검은 태양 공개 시점부터 ON) ────────
+    void StartWeather()
+    {
+        if (weatherActive) return;
+        weatherActive = true;
+        StartCoroutine(LightningLoop());   // 주기 번개만. 그레인(지지직)은 원래 그대로.
+    }
+
+    IEnumerator LightningLoop()
+    {
+        // 공개 직후 바로 안 침(LightningReveal 이 이미 번쩍함). 이후 가끔 한 번씩만.
+        while (weatherActive && !isSkipping)
+        {
+            float wait = Random.Range(7f, 13f), t = 0f;
+            while (t < wait && weatherActive && !isSkipping) { t += Time.deltaTime; yield return null; }
+            if (!weatherActive || isSkipping) yield break;
+            yield return StartCoroutine(StormLightning(Random.Range(0.45f, 0.7f)));
+        }
+    }
+
+    IEnumerator StormLightning(float intensity)
+    {
+        shakeAmount = Mathf.Max(shakeAmount, 2.2f * intensity);
+        redCurrentExtra = Mathf.Max(redCurrentExtra, 0.1f);
+        // 한 번만, 느리게(오래 머물게) 번쩍
+        yield return StartCoroutine(QuickFlash(new Color(0.9f, 0.93f, 1f), 0.08f, 0.6f, intensity));
+    }
+
+    /// <summary>번개가 번쩍하며 새 구도(전체 일러스트)로 컷.</summary>
+    IEnumerator LightningReveal(RectTransform img, Vector2 focus, float scale)
+    {
+        GameObject fObj = new GameObject("LightningReveal");
+        fObj.transform.SetParent(canvasRT, false);
+        Image fl = fObj.AddComponent<Image>();
+        Stretch(fl.rectTransform);
+        fl.transform.SetAsLastSibling();
+        fl.raycastTarget = false;
+        Color col = new Color(0.92f, 0.95f, 1f);
+
+        float inT = 0.06f, e = 0f;
+        while (e < inT) { e += Time.deltaTime; fl.color = new Color(col.r, col.g, col.b, Mathf.Clamp01(e / inT)); yield return null; }
+        fl.color = new Color(col.r, col.g, col.b, 1f);
+
+        // 절정에서 전체 일러로 컷 + 셰이크
+        ApplyTransform(img, FocusToPos(img, focus, scale), scale);
+        shakeAmount = 5f;
+        redCurrentExtra = 0.3f;
+        yield return new WaitForSeconds(0.04f);
+
+        float outT = 0.35f; e = 0f;
+        while (e < outT) { e += Time.deltaTime; fl.color = new Color(col.r, col.g, col.b, 1f - Mathf.Clamp01(e / outT)); yield return null; }
+        Destroy(fObj);
+    }
+
+
     // ===================== 연출 효과 =====================
 
     IEnumerator LightningFlash()
     {
-        // 짧고 날카로운 흰 번쩍 2회
-        for (int n = 0; n < 2; n++)
-        {
-            yield return StartCoroutine(QuickFlash(new Color(1f, 1f, 1f), 0.06f, 0.18f, 0.5f));
-            yield return new WaitForSeconds(0.08f);
-        }
+        // 은은한 흰 번쩍 1회 (이전엔 2회 날카롭게 → 정적인 무드로 톤다운)
+        yield return StartCoroutine(QuickFlash(new Color(1f, 1f, 1f), 0.08f, 0.35f, 0.32f));
     }
 
     IEnumerator FinaleFlash()
@@ -373,17 +492,23 @@ public class CutsceneManager : MonoBehaviour
         Destroy(flashObj);
     }
 
-    IEnumerator TypeText(string text)
+    // 다키스트 던전 톤 — 한 줄을 통째로 부드럽게 페이드 인 (타자기 X)
+    IEnumerator RevealText(string text)
     {
-        narrationText.text = "";
-        Color c = narrationText.color; c.a = 1f; narrationText.color = c;
+        narrationText.text = text;
+        Color c = narrationText.color;
+        if (isSkipping) { c.a = 1f; narrationText.color = c; yield break; }
 
-        foreach (char ch in text)
+        c.a = 0f; narrationText.color = c;   // 페이드 시작 전 즉시 투명 (1프레임 풀알파 튐 방지)
+        float e = 0f, dur = 0.45f;
+        while (e < dur)
         {
-            if (isSkipping) { narrationText.text = text; yield break; }
-            narrationText.text += ch;
-            yield return new WaitForSeconds(typingSpeed);
+            e += Time.deltaTime;
+            c.a = Mathf.SmoothStep(0f, 1f, e / dur);
+            narrationText.color = c;
+            yield return null;
         }
+        c.a = 1f; narrationText.color = c;
     }
 
     IEnumerator FadeText(float from, float to)
@@ -430,8 +555,66 @@ public class CutsceneManager : MonoBehaviour
         letterTop = CreateBar("LetterTop", true);
         letterBottom = CreateBar("LetterBottom", false);
 
+        // 나레이션을 하단 자막 밴드로 (캐릭터 안 가림) + 어두운 스크림
+        SetupNarrationBand();
+
         // 나레이션 텍스트를 맨 위로
         if (narrationText != null) narrationText.transform.SetAsLastSibling();
+    }
+
+    // 나레이션을 하단 중앙 밴드로 재배치 + 뒤에 어두운 그라데이션 스크림 (다키스트 던전 톤)
+    void SetupNarrationBand()
+    {
+        if (canvasRT == null || narrationText == null) return;
+
+        // 하단 스크림 (어두운 그라데이션) — 글자가 일러 위에 둥둥 뜨지 않게 받쳐줌
+        GameObject scrimObj = new GameObject("NarrationScrim");
+        scrimObj.transform.SetParent(canvasRT, false);
+        Image scrim = scrimObj.AddComponent<Image>();
+        scrim.sprite = MakeBottomScrimSprite();
+        scrim.color = new Color(0f, 0f, 0f, 0.8f);
+        scrim.raycastTarget = false;
+        RectTransform srt = scrim.rectTransform;
+        srt.anchorMin = new Vector2(0f, 0f);
+        srt.anchorMax = new Vector2(1f, 0.4f);
+        srt.offsetMin = Vector2.zero; srt.offsetMax = Vector2.zero;
+        scrim.transform.SetAsLastSibling();
+
+        // 나레이션 → 캔버스 직속 + 하단 중앙으로 재배치 (기존 BottomBar 위치 의존 제거)
+        narrationText.rectTransform.SetParent(canvasRT, false);
+        RectTransform nrt = narrationText.rectTransform;
+        nrt.anchorMin = new Vector2(0.5f, 0f);
+        nrt.anchorMax = new Vector2(0.5f, 0f);
+        nrt.pivot = new Vector2(0.5f, 0f);
+        nrt.anchoredPosition = new Vector2(0f, 120f);
+        nrt.sizeDelta = new Vector2(1480f, 240f);
+
+        // 스타일 — 명조 이탤릭, 재빛 오프화이트, 자간/행간 여유, 가독성 아웃라인
+        narrationText.fontStyle = FontStyles.Italic;
+        narrationText.fontSize = 44f;
+        Color tc = new Color(0.9f, 0.88f, 0.83f, narrationText.color.a);
+        narrationText.color = tc;
+        narrationText.alignment = TextAlignmentOptions.Bottom;
+        narrationText.characterSpacing = 2f;
+        narrationText.lineSpacing = 8f;
+        narrationText.textWrappingMode = TextWrappingModes.Normal;
+        narrationText.outlineColor = new Color(0f, 0f, 0f, 1f);
+        narrationText.outlineWidth = 0.16f;
+    }
+
+    Sprite MakeBottomScrimSprite()
+    {
+        int h = 64;
+        Texture2D tex = new Texture2D(1, h, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        for (int y = 0; y < h; y++)
+        {
+            float k = y / (float)(h - 1);          // 0=아래, 1=위
+            float a = Mathf.Pow(1f - k, 1.5f);     // 아래 진하게 → 위로 투명
+            tex.SetPixel(0, y, new Color(0f, 0f, 0f, a));
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, 1, h), new Vector2(0.5f, 0.5f));
     }
 
     Image CreateOverlayImage(string name, Sprite sprite, Color color)
