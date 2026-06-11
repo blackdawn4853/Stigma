@@ -24,7 +24,7 @@ public class ShopUI : MonoBehaviour
     public Vector4 merchantCrop = new Vector4(0.14f, 0.13f, 0.63f, 0.99f);
 
     // 색
-    static readonly Color colDim = new Color(0.03f, 0.022f, 0.045f, 0.93f);   // 거의 검정 보랏빛 (상점 입장감)
+    static readonly Color colDim = new Color(0f, 0f, 0f, 1f);   // 완전 검정 (상인 일러 순수검정 배경과 정확히 일치 → 박스 안 떠보임)
     static readonly Color colPanel = new Color(0.07f, 0.062f, 0.092f, 0.985f); // 어두운 석재 제단
     static readonly Color colPanelEdge = new Color(0.5f, 0.42f, 0.22f, 0.85f);
     static readonly Color colText = new Color(0.93f, 0.9f, 0.95f, 1f);
@@ -584,12 +584,7 @@ public class ShopUI : MonoBehaviour
         Stretch(vig.rectTransform);
         vig.raycastTarget = false;
 
-        // 그레인 (미세 노이즈)
-        var grain = NewImage(transform, "Grain", new Color(1f, 1f, 1f, 0.028f));
-        grain.sprite = GetGrainSprite();
-        grain.type = Image.Type.Tiled;
-        Stretch(grain.rectTransform);
-        grain.raycastTarget = false;
+        // 그레인(치지직 노이즈) 제거 — 노이즈 없는 상인 일러가 노이즈 배경 위에 박스처럼 떠보여서 뺌.
     }
 
     // 외신 상인 — 와이드 일러스트에서 상인만 크롭해 왼쪽에 세움
@@ -638,7 +633,7 @@ public class ShopUI : MonoBehaviour
         go.transform.SetParent(transform, false);
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = new Vector2(-470f, -90f);    // 얼굴(눈) 아래로
+        rt.anchoredPosition = new Vector2(-470f, -300f);   // 몸통 위로 내려 얼굴을 안 가리게 (몸체를 살짝 가림)
         rt.sizeDelta = new Vector2(540f, 160f);
         var bg = go.GetComponent<Image>();
         bg.color = new Color(0.06f, 0.05f, 0.08f, 0.96f);

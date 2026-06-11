@@ -71,10 +71,22 @@ public class GameOverScene : MonoBehaviour
         // 타이틀 "GAME OVER" — 페이드 대신 피-reveal + 떨림 연출로 등장(GameOverTitleFX)
         BuildTitleFX(canvas.transform);
 
-        // 글귀 (랜덤)
+        // 글귀 (랜덤) — 타자기 효과로 한 글자씩 새겨짐 + 끝에 깜빡이는 커서
         string epitaph = Epitaphs[Random.Range(0, Epitaphs.Length)];
-        MakeText(root, epitaph, 36, FontStyles.Italic,
+        var epi = MakeText(root, epitaph, 36, FontStyles.Italic,
             new Color(0.62f, 0.60f, 0.57f), new Vector2(0f, 95f), new Vector2(1500f, 70f));
+        epi.maxVisibleCharacters = 0;   // 전부 숨김 → 타자기로 하나씩 공개
+
+        // 커서 (작은 사각형 — 글리프 두부 방지로 메시 대신 Image). 평소 숨김, 타이핑 시작 시 등장.
+        var cursorImg = MakeImage(epi.transform, "Cursor", new Color(0.72f, 0.70f, 0.66f, 0.85f));
+        var curRt = cursorImg.rectTransform;
+        curRt.anchorMin = curRt.anchorMax = curRt.pivot = new Vector2(0.5f, 0.5f);
+        curRt.sizeDelta = new Vector2(5f, 34f);
+        curRt.anchoredPosition = Vector2.zero;
+        cursorImg.raycastTarget = false;
+        cursorImg.enabled = false;
+
+        StartCoroutine(TypeEpitaph(epi, cursorImg));
 
         // 구분선
         MakeDivider(root, new Vector2(0f, 25f), 1000f);
@@ -93,6 +105,9 @@ public class GameOverScene : MonoBehaviour
 
         // 타이틀로 버튼
         BuildTitleButton(root, new Vector2(0f, -310f));
+
+        // 분위기 오버레이 (비네트 + 가장자리 붉은 펄스 + 옅은 필름 그레인) — 최상단, 클릭 비차단
+        BuildAtmosphere();
     }
 
     // 타이틀 + 뒤편 붉은 글로우 생성 후 연출 컴포넌트(GameOverTitleFX) 부착.
@@ -365,6 +380,190 @@ public class GameOverScene : MonoBehaviour
             yield return null;
         }
         if (rootFade != null) rootFade.alpha = 1f;
+    }
+
+    // ---------------------------------------------------------------- C. 글귀 타자기
+
+    // 타이틀 reveal(약 1.6s) 끝난 뒤 글귀를 한 글자씩 공개. 커서는 타이핑 시작 시 등장해 끝에서 깜빡임.
+    IEnumerator TypeEpitaph(TextMeshProUGUI tmp, Image cursor)
+    {
+        if (tmp == null) yield break;
+
+        // 총 글자 수 확보 (maxVisibleCharacters 와 무관하게 layout 은 전체 계산됨)
+        tmp.maxVisibleCharacters = 99999;
+        tmp.ForceMeshUpdate();
+        int total = tmp.textInfo.characterCount;
+        tmp.maxVisibleCharacters = 0;
+        tmp.ForceMeshUpdate();
+
+        yield return new WaitForSecondsRealtime(1.7f);   // 타이틀 연출 끝난 뒤
+
+        if (cursor != null) cursor.enabled = true;
+        StartCoroutine(BlinkCursor(cursor));
+
+        for (int i = 1; i <= total; i++)
+        {
+            tmp.maxVisibleCharacters = i;
+            tmp.ForceMeshUpdate();
+            PlaceCursor(tmp, cursor, i);
+            yield return new WaitForSecondsRealtime(0.06f);
+        }
+        tmp.maxVisibleCharacters = total;
+        tmp.ForceMeshUpdate();
+        PlaceCursor(tmp, cursor, total);
+    }
+
+    // 커서를 마지막으로 보이는 글자 오른쪽에 배치 (가운데 정렬이라 매 글자 위치가 바뀜)
+    void PlaceCursor(TextMeshProUGUI tmp, Image cursor, int visibleCount)
+    {
+        if (cursor == null) return;
+        var ti = tmp.textInfo;
+        int idx = -1;
+        int upper = Mathf.Min(visibleCount, ti.characterCount);
+        for (int c = upper - 1; c >= 0; c--)
+            if (ti.characterInfo[c].isVisible) { idx = c; break; }
+
+        var rt = cursor.rectTransform;
+        if (idx < 0) { rt.anchoredPosition = Vector2.zero; return; }   // 아직 보이는 글자 없음
+
+        var ci = ti.characterInfo[idx];
+        float x = ci.topRight.x + 5f;
+        float y = (ci.ascender + ci.descender) * 0.5f;
+        rt.anchoredPosition = new Vector2(x, y);
+    }
+
+    IEnumerator BlinkCursor(Image cursor)
+    {
+        float t = 0f;
+        while (cursor != null)
+        {
+            t += Time.unscaledDeltaTime;
+            var c = cursor.color;
+            c.a = 0.85f * (0.5f + 0.5f * Mathf.Sin(t * 6.5f));
+            cursor.color = c;
+            yield return null;
+        }
+    }
+
+    // ---------------------------------------------------------------- D. 분위기 오버레이
+
+    void BuildAtmosphere()
+    {
+        var holderGO = new GameObject("Atmosphere", typeof(RectTransform), typeof(CanvasGroup));
+        holderGO.transform.SetParent(canvas.transform, false);
+        StretchFull(holderGO.GetComponent<RectTransform>());
+        holderGO.transform.SetAsLastSibling();   // 화면 최상단 (단 클릭은 통과)
+        var hcg = holderGO.GetComponent<CanvasGroup>();
+        hcg.blocksRaycasts = false; hcg.interactable = false; hcg.alpha = 0f;
+        Transform h = holderGO.transform;
+
+        // 비네트 (가장자리 어둡게)
+        var vig = MakeImage(h, "Vignette", new Color(0f, 0f, 0f, 0.55f));
+        StretchFull(vig.rectTransform);
+        vig.sprite = VignetteSprite();
+        vig.raycastTarget = false;
+
+        // 가장자리 붉은 펄스 (은은한 호흡)
+        var pulse = MakeImage(h, "RedPulse", new Color(0.5f, 0.04f, 0.05f, 0.12f));
+        StretchFull(pulse.rectTransform);
+        pulse.sprite = VignetteSprite();
+        pulse.raycastTarget = false;
+        StartCoroutine(RedPulse(pulse));
+
+        // 필름 그레인 (옅게, 깜빡) — RawImage uvRect 를 매 프레임 랜덤 오프셋해 지지직
+        var grainGO = new GameObject("Grain", typeof(RectTransform), typeof(RawImage));
+        grainGO.transform.SetParent(h, false);
+        StretchFull(grainGO.GetComponent<RectTransform>());
+        var raw = grainGO.GetComponent<RawImage>();
+        raw.texture = NoiseTexture();
+        raw.color = new Color(1f, 1f, 1f, 0.05f);
+        raw.uvRect = new Rect(0f, 0f, 8f, 8f);   // 8배 타일
+        raw.raycastTarget = false;
+        StartCoroutine(GrainFlicker(raw));
+
+        StartCoroutine(FadeCanvasGroup(hcg, 1f, 1.2f));
+    }
+
+    IEnumerator RedPulse(Image img)
+    {
+        float t = 0f;
+        while (img != null)
+        {
+            t += Time.unscaledDeltaTime;
+            var c = img.color;
+            c.a = 0.07f + 0.10f * (0.5f + 0.5f * Mathf.Sin(t * 1.3f));
+            img.color = c;
+            yield return null;
+        }
+    }
+
+    IEnumerator GrainFlicker(RawImage raw)
+    {
+        float acc = 0f;
+        while (raw != null)
+        {
+            acc += Time.unscaledDeltaTime;
+            if (acc >= 0.045f)   // ~22fps 깜빡 → 필름 느낌
+            {
+                acc = 0f;
+                raw.uvRect = new Rect(Random.value, Random.value, 8f, 8f);
+            }
+            yield return null;
+        }
+    }
+
+    IEnumerator FadeCanvasGroup(CanvasGroup cg, float to, float dur)
+    {
+        float from = cg.alpha, t = 0f;
+        while (t < dur)
+        {
+            t += Time.unscaledDeltaTime;
+            cg.alpha = Mathf.Lerp(from, to, t / dur);
+            yield return null;
+        }
+        cg.alpha = to;
+    }
+
+    // 가장자리로 갈수록 진해지는 비네트 스프라이트 (흰색·알파만, 색은 Image.color)
+    Sprite vignetteCache;
+    Sprite VignetteSprite()
+    {
+        if (vignetteCache != null) return vignetteCache;
+        const int s = 256;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[s * s];
+        Vector2 c = new Vector2(s * 0.5f, s * 0.5f);
+        float maxR = s * 0.5f;
+        for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), c) / maxR;
+                float a = Mathf.Clamp01((d - 0.55f) / 0.45f);
+                a *= a;
+                px[y * s + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+            }
+        tex.SetPixels32(px); tex.Apply();
+        vignetteCache = Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f));
+        return vignetteCache;
+    }
+
+    // 필름 그레인용 노이즈 텍스처 (회색 랜덤, Repeat)
+    Texture2D noiseCache;
+    Texture2D NoiseTexture()
+    {
+        if (noiseCache != null) return noiseCache;
+        const int s = 128;
+        var tex = new Texture2D(s, s, TextureFormat.RGBA32, false)
+        { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Point };
+        var px = new Color32[s * s];
+        for (int i = 0; i < px.Length; i++)
+        {
+            byte v = (byte)(Random.value * 255f);
+            px[i] = new Color32(v, v, v, v);
+        }
+        tex.SetPixels32(px); tex.Apply();
+        noiseCache = tex;
+        return noiseCache;
     }
 
     // ---------------------------------------------------------------- 헬퍼
