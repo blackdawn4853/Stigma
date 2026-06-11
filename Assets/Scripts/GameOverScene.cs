@@ -476,7 +476,7 @@ public class GameOverScene : MonoBehaviour
         StretchFull(grainGO.GetComponent<RectTransform>());
         var raw = grainGO.GetComponent<RawImage>();
         raw.texture = NoiseTexture();
-        raw.color = new Color(1f, 1f, 1f, 0.05f);
+        raw.color = new Color(1f, 1f, 1f, 0.022f);   // 그레인 옅게 (0.05 → 0.022)
         raw.uvRect = new Rect(0f, 0f, 8f, 8f);   // 8배 타일
         raw.raycastTarget = false;
         StartCoroutine(GrainFlicker(raw));
