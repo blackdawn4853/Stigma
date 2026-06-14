@@ -253,7 +253,7 @@ public class BattleManager : MonoBehaviour
     {
         if (amount <= 0) return;
         playerCurrentHp -= amount;
-        if (playerHitEffect != null) playerHitEffect.PlayHit();
+        if (playerHitEffect != null) playerHitEffect.PlayHit(amount);
 
         if (CombatEffectsManager.Instance != null)
         {
@@ -729,14 +729,8 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case CardData.CardEffectType.MultiHit:
-                int totalMulti = 0;
-                for (int i = 0; i < card.value2; i++)
-                {
-                    if (target == null || !target.IsAlive) break;
-                    damage = CalculateDamage(card.value, card, target);
-                    totalMulti += ApplyDamageToMonster(damage, card, target);
-                }
-                Debug.Log($"{card.cardName} → {NameOf(target)} {card.value2}회, 총 {totalMulti} 데미지!");
+                // 연타는 시간차로 — 숫자/타격이 한 프레임에 겹치지 않고 따로 올라오게.
+                StartCoroutine(MultiHitRoutine(card, target, card.value2));
                 break;
 
             case CardData.CardEffectType.PenetratingDamage:
@@ -796,21 +790,8 @@ public class BattleManager : MonoBehaviour
             }
 
             case CardData.CardEffectType.AllMultiHit:
-            {
-                int totalMHit = 0;
-                var alive = GetAliveMonsters();
-                for (int i = 0; i < card.value2; i++)
-                {
-                    foreach (var m in alive)
-                    {
-                        if (!m.IsAlive) continue;
-                        damage = CalculateDamage(card.value, card, m);
-                        totalMHit += ApplyDamageToMonster(damage, card, m);
-                    }
-                }
-                Debug.Log($"{card.cardName} — 전체 {card.value2}회, 총 {totalMHit} 데미지!");
+                StartCoroutine(AllMultiHitRoutine(card, card.value2));
                 break;
-            }
 
             case CardData.CardEffectType.DamageSelfDamage:
                 damage = CalculateDamage(card.value, card, target);
@@ -859,6 +840,43 @@ public class BattleManager : MonoBehaviour
 
             yield return new WaitForSeconds(0.3f);
         }
+    }
+
+    [Tooltip("연타 카드(MultiHit/AllMultiHit) 타격 간 간격 (초) — 숫자가 따로 올라오게.")]
+    public float multiHitInterval = 0.12f;
+
+    // 같은 대상 연타 — 타격마다 간격을 둬 데미지 숫자가 겹치지 않고 차례로 올라온다.
+    IEnumerator MultiHitRoutine(CardData card, Monster target, int hits)
+    {
+        int total = 0;
+        for (int i = 0; i < hits; i++)
+        {
+            if (target == null || !target.IsAlive) break;
+            int damage = CalculateDamage(card.value, card, target);
+            total += ApplyDamageToMonster(damage, card, target);
+            CheckMonsterDeath();
+            if (i < hits - 1) yield return new WaitForSeconds(multiHitInterval);
+        }
+        Debug.Log($"{card.cardName} → {NameOf(target)} 연타 {hits}회, 총 {total} 데미지!");
+    }
+
+    // 전체 대상 연타 — 회차마다 살아있는 전체를 때리고, 회차 사이에 간격.
+    IEnumerator AllMultiHitRoutine(CardData card, int hits)
+    {
+        int total = 0;
+        for (int i = 0; i < hits; i++)
+        {
+            var alive = GetAliveMonsters();
+            foreach (var m in alive)
+            {
+                if (m == null || !m.IsAlive) continue;
+                int damage = CalculateDamage(card.value, card, m);
+                total += ApplyDamageToMonster(damage, card, m);
+            }
+            CheckMonsterDeath();
+            if (i < hits - 1) yield return new WaitForSeconds(multiHitInterval);
+        }
+        Debug.Log($"{card.cardName} — 전체 연타 {hits}회, 총 {total} 데미지!");
     }
 
     int CalculateDamage(int baseDamage, CardData card, Monster target)
@@ -1019,9 +1037,14 @@ public class BattleManager : MonoBehaviour
             else
             {
                 if (m.nextAction == null) continue;
-                ExecuteMonsterAction(m);
+                // 슬더스처럼 한 마리씩 차례대로 행동 — 돌진/강조 + 타격이 끝날 때까지 대기.
+                yield return StartCoroutine(ExecuteMonsterActionRoutine(m));
             }
             if (playerCurrentHp <= 0) break;
+
+            // 다음 몬스터로 넘어가기 전 짧은 텀 — 누가 무엇을 했는지 눈으로 따라갈 수 있게.
+            if (m.IsAlive || i < monsters.Count - 1)
+                yield return new WaitForSeconds(monsterActionGap);
         }
 
         // 다음 턴 행동 결정
@@ -1034,13 +1057,36 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void ExecuteMonsterAction(Monster m)
+    [Header("몬스터 순차 행동 연출 (슬더스 스타일)")]
+    [Tooltip("한 몬스터 행동이 끝나고 다음 몬스터로 넘어가기 전 텀 (초).")]
+    public float monsterActionGap = 0.35f;
+    [Tooltip("공격 시 플레이어 쪽으로 돌진하는 거리 (월드 단위).")]
+    public float monsterLungeAmount = 0.6f;
+    [Tooltip("돌진 모션 전체 길이 (초).")]
+    public float monsterLungeDuration = 0.34f;
+    [Tooltip("돌진 시작 후 실제 타격(데미지 적용)까지 지연 — 찌르는 정점에서 맞도록 (초).")]
+    public float monsterLungeHitDelay = 0.11f;
+    [Tooltip("타격 후 복귀를 위한 여유 시간 (초).")]
+    public float monsterLungeRecover = 0.18f;
+    [Tooltip("방어/버프 등 비공격 행동 시 위로 살짝 들썩이는 강조 거리 (월드 단위).")]
+    public float monsterBraceAmount = 0.3f;
+
+    // 몬스터 한 마리의 행동을 연출과 함께 순차 실행. MonsterTurnRoutine 이 한 마리씩 대기하며 호출.
+    IEnumerator ExecuteMonsterActionRoutine(Monster m)
     {
         var action = m.nextAction;
+        if (action == null) yield break;
+
         switch (action.actionType)
         {
             case MonsterData.ActionType.Attack:
+            case MonsterData.ActionType.AttackAndDebuff:
             {
+                // 플레이어(왼쪽)를 향해 돌진 → 정점에서 타격.
+                var pl = m.GetComponent<ParallaxLayer>();
+                if (pl != null) pl.Lunge(Vector2.left, monsterLungeAmount, monsterLungeDuration);
+                yield return new WaitForSeconds(monsterLungeHitDelay);
+
                 int damage = action.value + m.strength;
                 if (GazeEffectManager.Instance != null)
                     damage += GazeEffectManager.Instance.GetMonsterBonusAttack();
@@ -1050,30 +1096,35 @@ public class BattleManager : MonoBehaviour
 
                 if (actualDamage > 0)
                     DamagePlayer(actualDamage);
+
+                if (action.actionType == MonsterData.ActionType.AttackAndDebuff)
+                    playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
+
                 CheckPlayerDeath();
+                yield return new WaitForSeconds(monsterLungeRecover);
                 break;
             }
             case MonsterData.ActionType.Defend:
+            {
                 m.AddDefense(action.value);
                 Debug.Log($"[{m.DisplayName}] 방어도 +{action.value}, 현재 방어도: {m.defense}");
+                var pl = m.GetComponent<ParallaxLayer>();
+                if (pl != null) pl.Lunge(Vector2.up, monsterBraceAmount, 0.28f);
+                yield return new WaitForSeconds(0.3f);
                 break;
+            }
             case MonsterData.ActionType.Buff:
-                m.ApplyStrength(5, action.duration);
-                break;
-            case MonsterData.ActionType.Debuff:
-                playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
-                break;
-            case MonsterData.ActionType.AttackAndDebuff:
             {
-                int damage = action.value + m.strength;
-                if (GazeEffectManager.Instance != null)
-                    damage += GazeEffectManager.Instance.GetMonsterBonusAttack();
-                int actualDamage = Mathf.Max(0, damage - playerDefense);
-                playerDefense = Mathf.Max(0, playerDefense - damage);
-                if (actualDamage > 0)
-                    DamagePlayer(actualDamage);
+                m.ApplyStrength(5, action.duration);
+                var pl = m.GetComponent<ParallaxLayer>();
+                if (pl != null) pl.Lunge(Vector2.up, monsterBraceAmount, 0.28f);
+                yield return new WaitForSeconds(0.3f);
+                break;
+            }
+            case MonsterData.ActionType.Debuff:
+            {
                 playerDebuffTurns = Mathf.Max(playerDebuffTurns, action.duration);
-                CheckPlayerDeath();
+                yield return new WaitForSeconds(0.2f);
                 break;
             }
         }

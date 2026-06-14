@@ -177,7 +177,9 @@ public class Monster : MonoBehaviour
         currentHp -= actual;
         if (actual > 0)
         {
-            if (hitEffect != null) hitEffect.PlayHit();
+            if (hitEffect != null) hitEffect.PlayHit(actual);
+            if (EffectManager.Instance != null)
+                EffectManager.Instance.PlayHitImpact(transform.position, actual);
             if (CombatEffectsManager.Instance != null)
                 CombatEffectsManager.Instance.ShowDamagePopup(transform.position, actual);
             if (CombatCameraEffect.Instance != null)
@@ -196,7 +198,9 @@ public class Monster : MonoBehaviour
         currentHp -= damage;
         if (damage > 0)
         {
-            if (hitEffect != null) hitEffect.PlayHit();
+            if (hitEffect != null) hitEffect.PlayHit(damage);
+            if (EffectManager.Instance != null)
+                EffectManager.Instance.PlayHitImpact(transform.position, damage);
             if (CombatEffectsManager.Instance != null)
                 CombatEffectsManager.Instance.ShowDamagePopup(transform.position, damage);
             if (CombatCameraEffect.Instance != null)

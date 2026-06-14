@@ -59,7 +59,7 @@ public class PlayerRuntimeUI : MonoBehaviour
         BuildStatusBar(rt);
 
         // 방어도 — 캐릭터 몸에 큰 반투명 방패 오버레이 (자체 월드 캔버스, 작은 배지와 별도)
-        bodyDefense = BodyDefenseUI.CreateFor(target, new Vector3(0f, 0.9f, 0f));
+        bodyDefense = BodyDefenseUI.CreateFor(target, new Vector3(0f, 0.9f, 0f), flipX: false); // 방패 면이 오른쪽(몬스터)을 향함 — 스프라이트 기본 방향
     }
 
     void BuildHpBar(RectTransform parent)

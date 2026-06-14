@@ -26,6 +26,8 @@ public class BodyDefenseUI : MonoBehaviour
     [Range(0f, 1f)] public float shieldPeakAlpha = 0.6f;
     [Tooltip("BattleIcons.Defense 가 없을 때 폴백 색.")]
     public Color shieldFallbackColor = new Color(0.4f, 0.75f, 1f, 1f);
+    [Tooltip("좌우 반전 — 방패의 막는 면이 공격 오는 쪽을 향하게. 플레이어(왼쪽)는 true 로 오른쪽(몬스터)을 막음.")]
+    public bool flipX = false;
 
     [Header("플래시 애니메이션")]
     [Tooltip("아래에서 위로 올라오는 거리.")]
@@ -45,7 +47,7 @@ public class BodyDefenseUI : MonoBehaviour
     private Coroutine animCo;
     private int lastDefense = 0;
 
-    public static BodyDefenseUI CreateFor(Transform target, Vector3 worldOffset)
+    public static BodyDefenseUI CreateFor(Transform target, Vector3 worldOffset, bool flipX = false)
     {
         if (target == null) return null;
         GameObject go = new GameObject("BodyDefenseUI");
@@ -56,6 +58,7 @@ public class BodyDefenseUI : MonoBehaviour
         var ui = go.AddComponent<BodyDefenseUI>();
         ui.target = target;
         ui.worldOffset = worldOffset;
+        ui.flipX = flipX;
         ui.Build();
         return ui;
     }
@@ -83,6 +86,8 @@ public class BodyDefenseUI : MonoBehaviour
         shieldRT.sizeDelta = shieldSize;
         shieldRT.anchoredPosition = Vector2.zero;
         shieldFinalPos = Vector2.zero;
+        // 막는 면이 공격 오는 쪽을 보도록 좌우 반전 (자식 스케일만 — root 는 LateUpdate 가 카메라로 회전)
+        shieldRT.localScale = new Vector3(flipX ? -1f : 1f, 1f, 1f);
 
         shieldImage = shieldGO.GetComponent<Image>();
         shieldImage.raycastTarget = false;

@@ -110,4 +110,34 @@ public class ParallaxLayer : MonoBehaviour
         hitOffset = Vector3.zero;
         knockCo = null;
     }
+
+    // 돌진 — dir 방향으로 빠르게 전진(찌르기)했다가 부드럽게 복귀. 잔떨림 없음(공격 모션용).
+    // Knockback 과 같은 hitOffset 채널을 쓰므로 동시에 호출하지 않는다.
+    Coroutine lungeCo;
+    public void Lunge(Vector2 dir, float amount, float duration)
+    {
+        if (!originCaptured) CaptureOrigin();
+        if (lungeCo != null) StopCoroutine(lungeCo);
+        if (knockCo != null) { StopCoroutine(knockCo); knockCo = null; }
+        if (amount <= 0f || duration <= 0f) { hitOffset = Vector3.zero; return; }
+        lungeCo = StartCoroutine(LungeRoutine((Vector3)(dir.normalized * amount), duration));
+    }
+
+    IEnumerator LungeRoutine(Vector3 peak, float duration)
+    {
+        const float advanceFrac = 0.32f;   // 앞 32% 구간에 빠르게 전진, 나머지는 복귀
+        float t = 0f;
+        while (t < duration)
+        {
+            float k = t / duration;
+            float p = k < advanceFrac
+                ? Mathf.SmoothStep(0f, 1f, k / advanceFrac)
+                : Mathf.SmoothStep(1f, 0f, (k - advanceFrac) / (1f - advanceFrac));
+            hitOffset = peak * p;
+            t += Time.deltaTime;
+            yield return null;
+        }
+        hitOffset = Vector3.zero;
+        lungeCo = null;
+    }
 }

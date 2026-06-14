@@ -11,6 +11,16 @@
 
 ---
 
+## 2026-06-14 — [맥북] 전투 타격감 업그레이드 (몬스터 순차턴 + 발동임팩트 + 피격플래시 + 방패방향)
+
+컴파일 에러 0. **단 전투 진입 필요 → 실제 플레이 육안 확인 권장.** 값은 전부 인스펙터 노출.
+- **몬스터 턴 순차화(슬더스 스타일)** — `BattleManager.MonsterTurnRoutine`/`ExecuteMonsterActionRoutine`(신규 코루틴). 기존엔 일반 몬스터의 `ExecuteMonsterAction`이 **동기 함수**라 3마리가 한 프레임에 동시 타격 → 숫자 겹치고 순식간에 지나감. 이제 앞 몬스터부터 한 마리씩 **플레이어 쪽으로 돌진(Lunge)→정점에서 타격→복귀→텀(0.35s)→다음**. 비공격(방어/버프)은 위로 살짝 들썩. 튜닝값: `monsterActionGap/LungeAmount/LungeDuration/LungeHitDelay/LungeRecover/BraceAmount`.
+- **돌진 모션**: `ParallaxLayer.Lunge()` 신규(전진 32%→복귀, 잔떨림 없음). 기존 `Knockback`과 같은 `hitOffset` 채널 공유(동시 호출 시 서로 중단).
+- **연타 카드 숫자 분리**: `MultiHit`/`AllMultiHit`를 즉시 루프 → `MultiHitRoutine`/`AllMultiHitRoutine` 코루틴으로(타격 간 `multiHitInterval` 0.12s). 같은 대상 연타 숫자가 따로 올라옴.
+- **카드 발동 임팩트**: 죽은 코드였던 `EffectManager`(어디서도 호출 안 됨) **전면 재작성** + 자동 부트스트랩(BattleScene). 몬스터 피해 시 타격점에 **창백한 흰빛 베기 호(arc, LineRenderer 곡선) + 퍼지는 핏빛 충격 링 + 검붉은 스파크 파편**. 데미지 클수록 크고 굵게(≥15 데미지면 베기 2줄). `Monster.TakeDamage/DirectDamage`에서 `PlayHitImpact` 호출.
+- **피격 플래시 강화**: `HitEffect.PlayHit(int damage)` — 흰 번쩍 1프레임 → **흰 번쩍→핏빛 틴트→원색 페이드**, 데미지 비례 강도·길이. 호출처(`Monster`, `BattleManager.DamagePlayer`)에 데미지 전달.
+- **방패 방향**: `BodyDefenseUI`에 `flipX` 옵션. 플레이어/몬스터가 같은 방패 스프라이트를 같은 방향으로 써서 플레이어 쪽이 반대로 보이던 문제 → **플레이어 방패만 좌우 반전**(오른쪽=몬스터를 막게). 호출처 `PlayerHpBarUI`/`PlayerRuntimeUI`에 `flipX:true`.
+
 ## 2026-06-11 — [맥북] 게임오버 씬 업그레이드 C(글귀 타자기) + D(분위기 오버레이)
 
 `GameOverScene.cs`. 컴파일 에러 0. (보류였던 게임오버 B/C/D 중 **C·D 구현**, B=붉은 눈은 이번엔 제외.)

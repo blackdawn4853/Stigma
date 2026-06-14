@@ -39,9 +39,9 @@ public class PlayerHpBarUI : MonoBehaviour
 
     [Header("방어 플래시 (BodyDefenseUI)")]
     [Tooltip("플레이어 몸 위로 슬라이드되는 방패 아이콘의 크기 (canvas-local px). 클수록 화면에서 큼.")]
-    public Vector2 bodyDefenseShieldSize = new Vector2(700f, 700f);
+    public Vector2 bodyDefenseShieldSize = new Vector2(780f, 780f);
     [Tooltip("플레이어 위치 기준 월드 오프셋 (몸 중앙). Y 값이 클수록 위쪽에서 표시.")]
-    public Vector3 bodyDefenseWorldOffset = new Vector3(1f, 2.4f, 0f);
+    public Vector3 bodyDefenseWorldOffset = new Vector3(1.8f, 2.7f, 0f);
 
     private Slider slider;
     private Image fillImage;
@@ -113,7 +113,8 @@ public class PlayerHpBarUI : MonoBehaviour
         if (BattleManager.Instance == null || BattleManager.Instance.playerObject == null) return;
         playerBodyDefense = BodyDefenseUI.CreateFor(
             BattleManager.Instance.playerObject.transform,
-            bodyDefenseWorldOffset);
+            bodyDefenseWorldOffset,
+            flipX: false); // 방패 면이 오른쪽(몬스터)을 향함 — 스프라이트 기본 방향
         if (playerBodyDefense != null)
             playerBodyDefense.SetShieldSize(bodyDefenseShieldSize);
     }
